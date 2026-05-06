@@ -480,14 +480,15 @@ function checkOverflow() {
 
 function getFormData() {
   const days = [...document.querySelectorAll('.day-toggle.on')].map(b=>b.textContent.trim());
-  return {
-    level:    document.getElementById('ef-level').value,
-    teacher:  document.getElementById('ef-teacher').value,
-    time:     document.getElementById('ef-time').value,
-    room:     document.getElementById('ef-room').value,
-    students: parseInt(document.getElementById('ef-students').value)||0,
+  const data = {
+    level:    document.getElementById('ef-level')?.value || LEVELS[0],
+    teacher:  document.getElementById('ef-teacher')?.value || TEACHERS[0],
+    time:     document.getElementById('ef-time')?.value || TIMES[0],
+    room:     document.getElementById('ef-room')?.value || ROOM_NAMES[0],
+    students: parseInt(document.getElementById('ef-students')?.value) || 10,
     days,
   };
+  return data;
 }
 
 function openAdd()         { editingId='new'; renderAll(); }
@@ -498,14 +499,20 @@ function deleteGroup(id)   { scheduleRef.child(id).remove(); if(editingId===id)e
 function saveNew() {
   const f = getFormData();
   if (!f.days.length) { alert("Select at least one day"); return; }
-  scheduleRef.push(f);
-  editingId=null;
+  scheduleRef.push(f).then(() => {
+    editingId=null;
+  }).catch(err => {
+    alert('Error saving: ' + err.message);
+  });
 }
 function saveEdit(id) {
   const f = getFormData();
   if (!f.days.length) { alert("Select at least one day"); return; }
-  scheduleRef.child(id).update(f);
-  editingId=null;
+  scheduleRef.child(id).update(f).then(() => {
+    editingId=null;
+  }).catch(err => {
+    alert('Error saving: ' + err.message);
+  });
 }
 function toggleDay(day, btn) {
   btn.classList.toggle('on');
