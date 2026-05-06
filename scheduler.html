@@ -491,17 +491,22 @@ function getFormData() {
   return data;
 }
 
-function openAdd()         { editingId='new'; renderAll(); }
-function cancelEdit()      { editingId=null;  renderAll(); }
-function toggleEdit(id)    { editingId = editingId===id ? null : id; renderAll(); }
-function deleteGroup(id)   { scheduleRef.child(id).remove(); if(editingId===id)editingId=null; }
+function openAdd()         { console.log('openAdd called'); editingId='new'; renderAll(); }
+function cancelEdit()      { console.log('cancelEdit called'); editingId=null;  renderAll(); }
+function toggleEdit(id)    { console.log('toggleEdit called', id); editingId = editingId===id ? null : id; renderAll(); }
+function deleteGroup(id)   { console.log('deleteGroup called', id); scheduleRef.child(id).remove(); if(editingId===id)editingId=null; }
 
 function saveNew() {
+  console.log('saveNew called');
   const f = getFormData();
+  console.log('Form data:', f);
   if (!f.days.length) { alert("Select at least one day"); return; }
+  console.log('Pushing to Firebase:', f);
   scheduleRef.push(f).then(() => {
+    console.log('Save successful');
     editingId=null;
   }).catch(err => {
+    console.error('Firebase error:', err);
     alert('Error saving: ' + err.message);
   });
 }
