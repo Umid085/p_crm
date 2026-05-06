@@ -148,6 +148,7 @@ td.students-cell.over { color: var(--red); }
 
 /* ── LOADING ── */
 .loading-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(14,14,14,0.9); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+.loading-overlay.hidden { display: none !important; }
 .loading-spinner { font-size: 1.5rem; color: var(--gold); font-family: var(--font-head); }
 
 /* ── RESPONSIVE ── */
@@ -303,7 +304,10 @@ let editForm    = {};
 // ══════════════════════════════════════════════════════════════
 function hideLoading() {
   const loader = document.getElementById('loading');
-  if (loader) loader.style.display = 'none';
+  if (loader) {
+    loader.classList.add('hidden');
+    loader.style.display = 'none';
+  }
 }
 
 function seedInitialData() {
@@ -314,31 +318,34 @@ function seedInitialData() {
   scheduleRef.set(initialMap);
 }
 
-let listenerAttached = false;
-
-scheduleRef.on('value', (snapshot) => {
-  try {
-    const data = snapshot.val();
-    if (data) {
-      schedule = Object.keys(data).map(key => ({...data[key], id: key}));
-    } else {
-      schedule = [];
-    }
-    isLoaded = true;
-    hideLoading();
-    renderAll();
-  } catch (e) {
-    console.error('Firebase listener error:', e);
-    hideLoading();
-  }
-}, (error) => {
-  console.error('Firebase error:', error);
+// Load local data first, then sync with Firebase
+function loadLocalData() {
+  schedule = INITIAL_DATA.map(g => ({...g}));
+  isLoaded = true;
   hideLoading();
-});
+  renderAll();
+}
 
+// Sync with Firebase
 setTimeout(() => {
-  hideLoading();
-}, 5000);
+  scheduleRef.on('value', (snapshot) => {
+    try {
+      const data = snapshot.val();
+      if (data) {
+        schedule = Object.keys(data).map(key => ({...data[key], id: key}));
+        renderAll();
+      } else if (!isLoaded) {
+        loadLocalData();
+      }
+    } catch (e) {
+      console.error('Firebase sync error:', e);
+      if (!isLoaded) loadLocalData();
+    }
+  }, (error) => {
+    console.error('Firebase error:', error);
+    if (!isLoaded) loadLocalData();
+  });
+}, 100);
 
 // ══════════════════════════════════════════════════════════════
 // HELPERS
@@ -654,13 +661,14 @@ function switchTab(tab) {
 }
 
 // ── INIT
+loadLocalData();
 setTimeout(() => {
   scheduleRef.once('value', (snapshot) => {
     if (!snapshot.exists()) {
       seedInitialData();
     }
   });
-}, 500);
+}, 1000);
 </script>
 </body>
 </html>
