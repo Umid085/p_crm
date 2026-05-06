@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gagarina Branch Scheduler</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0e0e0e; --bg2: #161616; --bg3: #1c1c1c; --bg4: #222;
+  --gold: #e8c547; --gold2: #c9a832; --gold-dim: rgba(232,197,71,0.12);
+  --white: #e8e8e8; --gray: #666; --gray2: #999; --gray3: #bbb;
+  --red: #e74c3c; --red-dim: rgba(231,76,60,0.15); --red-bg: rgba(231,76,60,0.08);
+  --green: #2ecc71; --green-dim: rgba(46,204,113,0.12);
+  --orange: #f39c12; --blue: #5b9cf6;
+  --border: #2a2a2a; --border2: #333;
+  --radius: 8px; --radius2: 12px;
+  --font-head: 'Syne', sans-serif; --font-mono: 'DM Mono', monospace;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 14px; }
+body { background: var(--bg); color: var(--white); font-family: var(--font-mono); min-height: 100vh; overflow-x: hidden; }
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg2); }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+/* ── HEADER ── */
+header { background: var(--bg2); border-bottom: 2px solid var(--gold); padding: 0 28px; display: flex; align-items: center; justify-content: space-between; height: 60px; position: sticky; top: 0; z-index: 100; }
+.logo { font-family: var(--font-head); font-size: 1.3rem; font-weight: 800; color: var(--gold); letter-spacing: 0.5px; }
+.logo span { color: var(--gray2); font-weight: 400; font-size: 0.85rem; margin-left: 10px; font-family: var(--font-mono); }
+.header-badge { background: var(--red); color: #fff; font-size: 0.7rem; font-weight: 700; padding: 3px 10px; border-radius: 20px; display: none; }
+.header-badge.show { display: block; }
+
+/* ── TABS ── */
+.tabs { display: flex; background: var(--bg2); border-bottom: 1px solid var(--border); padding: 0 28px; gap: 0; }
+.tab { padding: 14px 22px; background: transparent; color: var(--gray); border: none; border-bottom: 3px solid transparent; cursor: pointer; font-family: var(--font-head); font-size: 0.85rem; font-weight: 700; letter-spacing: 0.5px; transition: all .2s; white-space: nowrap; }
+.tab:hover { color: var(--gray3); }
+.tab.active { color: var(--gold); border-bottom-color: var(--gold); background: rgba(232,197,71,0.04); }
+
+/* ── BODY ── */
+.page { display: none; padding: 24px 28px; }
+.page.active { display: block; }
+
+/* ── SCHEDULE PAGE ── */
+.toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 18px; }
+select, input[type=text], input[type=number] {
+  background: var(--bg3); color: var(--white); border: 1px solid var(--border2);
+  border-radius: var(--radius); padding: 7px 12px; font-family: var(--font-mono);
+  font-size: 0.82rem; outline: none; transition: border-color .2s;
+}
+select:focus, input:focus { border-color: var(--gold); }
+.btn { padding: 8px 18px; border: none; border-radius: var(--radius); cursor: pointer; font-family: var(--font-head); font-size: 0.8rem; font-weight: 700; letter-spacing: 0.3px; transition: all .15s; white-space: nowrap; }
+.btn-gold { background: var(--gold); color: #111; }
+.btn-gold:hover { background: var(--gold2); }
+.btn-ghost { background: var(--bg3); color: var(--gray3); border: 1px solid var(--border2); }
+.btn-ghost:hover { border-color: var(--gold); color: var(--gold); }
+.btn-red { background: rgba(231,76,60,0.2); color: var(--red); border: 1px solid rgba(231,76,60,0.3); }
+.btn-red:hover { background: rgba(231,76,60,0.35); }
+.btn-sm { padding: 4px 10px; font-size: 0.72rem; }
+
+/* ── TABLE ── */
+.tbl-wrap { overflow-x: auto; border-radius: var(--radius2); border: 1px solid var(--border); }
+table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+thead th { background: var(--bg2); color: var(--gray); font-family: var(--font-head); font-size: 0.7rem; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border2); white-space: nowrap; }
+tbody tr { border-bottom: 1px solid var(--border); transition: background .15s; }
+tbody tr:hover { background: rgba(255,255,255,0.03); }
+tbody tr.overflow-row { background: var(--red-bg) !important; }
+tbody tr.edit-row { background: rgba(232,197,71,0.05) !important; }
+td { padding: 9px 12px; vertical-align: middle; }
+td.level-cell { font-family: var(--font-head); font-weight: 700; color: var(--gold); font-size: 0.82rem; }
+td.teacher-cell { color: var(--gray3); }
+td.time-cell { color: var(--blue); font-size: 0.78rem; }
+td.students-cell { font-weight: 700; color: var(--blue); }
+td.students-cell.over { color: var(--red); }
+.status-tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: 700; font-family: var(--font-head); }
+.tag-ok { background: var(--green-dim); color: var(--green); }
+.tag-over { background: var(--red-dim); color: var(--red); }
+.tag-near { background: rgba(243,156,18,0.15); color: var(--orange); }
+.day-pills { display: flex; gap: 3px; flex-wrap: wrap; }
+.day-pill { font-size: 0.65rem; padding: 2px 5px; border-radius: 3px; background: var(--bg4); color: var(--gray3); }
+
+/* ── EDIT PANEL ── */
+.edit-panel { background: var(--bg2); border: 1px solid var(--border2); border-radius: var(--radius2); padding: 18px 20px; margin: 0; }
+.edit-panel-title { font-family: var(--font-head); font-size: 0.9rem; font-weight: 700; color: var(--gold); margin-bottom: 14px; }
+.edit-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
+.field { display: flex; flex-direction: column; gap: 5px; }
+.field label { font-size: 0.68rem; color: var(--gray); text-transform: uppercase; letter-spacing: 0.5px; }
+.field select, .field input { width: 100%; }
+.day-toggle-group { display: flex; gap: 5px; flex-wrap: wrap; }
+.day-toggle { background: var(--bg4); color: var(--gray2); border: 1px solid var(--border2); border-radius: 4px; padding: 4px 9px; cursor: pointer; font-family: var(--font-mono); font-size: 0.72rem; transition: all .15s; }
+.day-toggle.on { background: var(--gold); color: #111; border-color: var(--gold); font-weight: 700; }
+.warn-banner { background: rgba(231,76,60,0.12); border: 1px solid rgba(231,76,60,0.3); border-radius: 6px; padding: 8px 12px; color: var(--red); font-size: 0.75rem; margin-top: 10px; }
+.edit-actions { display: flex; gap: 8px; margin-top: 14px; }
+
+/* ── ROOM GRID PAGE ── */
+.room-block { margin-bottom: 20px; border: 1px solid var(--border); border-radius: var(--radius2); overflow: hidden; }
+.room-hdr { background: var(--gold); padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; }
+.room-hdr-name { font-family: var(--font-head); font-size: 1rem; font-weight: 800; color: #111; }
+.room-hdr-cap { font-size: 0.75rem; color: #333; font-family: var(--font-mono); }
+.room-hdr-bar-wrap { flex: 1; margin: 0 16px; height: 6px; background: rgba(0,0,0,0.2); border-radius: 3px; overflow: hidden; }
+.room-hdr-bar { height: 100%; border-radius: 3px; transition: width .5s; }
+.room-tbl-wrap { overflow-x: auto; }
+.room-tbl { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
+.room-tbl th { background: var(--bg3); color: var(--gray); font-family: var(--font-head); font-size: 0.65rem; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; padding: 7px 10px; text-align: center; border-bottom: 1px solid var(--border2); white-space: nowrap; }
+.room-tbl th:first-child { text-align: left; width: 110px; }
+.room-tbl td { padding: 6px 8px; text-align: center; border: 1px solid var(--border); min-width: 110px; height: 52px; vertical-align: middle; cursor: default; }
+.room-tbl td:first-child { text-align: left; background: var(--bg2); color: var(--blue); font-size: 0.7rem; min-width: 100px; cursor: default; font-family: var(--font-mono); }
+.room-tbl td.booked { background: rgba(232,197,71,0.06); cursor: pointer; transition: background .15s; }
+.room-tbl td.booked:hover { background: rgba(232,197,71,0.14); }
+.room-tbl td.booked-over { background: var(--red-bg) !important; cursor: pointer; }
+.room-tbl td.booked-over:hover { background: rgba(231,76,60,0.2) !important; }
+.grid-cell-content { line-height: 1.3; }
+.grid-cell-level { font-family: var(--font-head); font-weight: 700; font-size: 0.72rem; color: var(--gold); }
+.grid-cell-over .grid-cell-level { color: var(--red); }
+.grid-cell-teacher { font-size: 0.65rem; color: var(--gray2); }
+.grid-cell-count { font-size: 0.65rem; color: var(--gray2); }
+.grid-cell-over .grid-cell-count { color: var(--red); }
+.empty-cell { color: var(--border2); font-size: 0.7rem; }
+
+/* ── SUMMARY PAGE ── */
+.kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 28px; }
+.kpi-card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius2); padding: 20px; }
+.kpi-val { font-family: var(--font-head); font-size: 2.2rem; font-weight: 800; line-height: 1; }
+.kpi-label { font-size: 0.68rem; color: var(--gray); text-transform: uppercase; letter-spacing: 0.6px; margin-top: 6px; }
+.kpi-bar { height: 4px; background: var(--border2); border-radius: 2px; margin-top: 10px; overflow: hidden; }
+.kpi-bar-fill { height: 100%; border-radius: 2px; transition: width .6s; }
+.section-title { font-family: var(--font-head); font-weight: 800; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; color: var(--gray); margin-bottom: 12px; margin-top: 24px; }
+.conflict-box { background: var(--red-bg); border: 1px solid rgba(231,76,60,0.25); border-radius: var(--radius2); padding: 16px; margin-bottom: 20px; }
+.conflict-box-title { font-family: var(--font-head); font-size: 0.85rem; font-weight: 800; color: var(--red); margin-bottom: 10px; }
+.conflict-item { font-size: 0.75rem; color: var(--gray3); padding: 5px 0; border-bottom: 1px solid rgba(231,76,60,0.1); }
+.conflict-item:last-child { border-bottom: none; }
+.conflict-badge { display: inline-block; font-size: 0.65rem; font-weight: 700; padding: 1px 6px; border-radius: 3px; margin-right: 6px; }
+.badge-over { background: var(--red-dim); color: var(--red); }
+.room-bars { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.room-bar-card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; }
+.room-bar-card.has-overflow { border-color: rgba(231,76,60,0.3); background: var(--red-bg); }
+.rbc-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+.rbc-name { font-family: var(--font-head); font-weight: 700; font-size: 0.85rem; }
+.rbc-meta { font-size: 0.68rem; color: var(--gray); }
+.rbc-bar { height: 8px; background: var(--border2); border-radius: 4px; overflow: hidden; }
+.rbc-bar-fill { height: 100%; border-radius: 4px; transition: width .6s; }
+.rbc-bottom { display: flex; justify-content: space-between; margin-top: 5px; font-size: 0.68rem; color: var(--gray); }
+.ok-banner { background: var(--green-dim); border: 1px solid rgba(46,204,113,0.2); border-radius: var(--radius); padding: 12px 16px; color: var(--green); font-size: 0.82rem; font-family: var(--font-head); font-weight: 700; }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 700px) {
+  .kpi-row { grid-template-columns: 1fr 1fr; }
+  .room-bars { grid-template-columns: 1fr; }
+  .edit-grid { grid-template-columns: 1fr 1fr; }
+  header { padding: 0 14px; }
+  .tabs { padding: 0 10px; }
+  .page { padding: 16px 12px; }
+  .tab { padding: 12px 12px; font-size: 0.75rem; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <span class="logo">GAGARINA <span>Branch Scheduler</span></span>
+  </div>
+  <div id="headerBadge" class="header-badge">0 issues</div>
+</header>
+
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('schedule')">📋 Schedule</button>
+  <button class="tab" onclick="switchTab('rooms')">🏫 Room Grid</button>
+  <button class="tab" onclick="switchTab('summary')">📊 Summary</button>
+</div>
+
+<div id="page-schedule" class="page active"></div>
+<div id="page-rooms"    class="page"></div>
+<div id="page-summary"  class="page"></div>
+
+<script>
+// ══════════════════════════════════════════════════════════════
+// DATA
+// ══════════════════════════════════════════════════════════════
+const ROOMS = [
+  {name:"Zuckerberg",cap:18},{name:"Space X",cap:18},{name:"Nelson Mandela",cap:18},
+  {name:"Einstein",cap:18},{name:"Elon Mask",cap:18},{name:"Quadrant",cap:18},
+  {name:"Exam Room",cap:24},{name:"National Geographic",cap:20},
+  {name:"Green Room",cap:15},{name:"New Room",cap:18},{name:"Kids",cap:18},{name:"German",cap:12},
+];
+const ROOM_CAP = Object.fromEntries(ROOMS.map(r=>[r.name,r.cap]));
+const TEACHERS = ["Umid","Odina","Zarrina","Shahzoda","Shakhruz","Sadoqat","Khamidillo","Anna","Elvira","Guzal","Gulnora","Rayhona","Kamila"];
+const LEVELS   = ["Kids 1","Kids 2","Kids 3","A0","A0 kids","A1","A1 kids","A2","A2 kids","B1","B1+","B2","Pre-IELTS 1st","Pre-IELTS 2nd","Pre-IELTS 3rd","IELTS 1st","IELTS 2nd","CEFR 1st","CEFR 2nd","Individual","NABOR/slot"];
+const TIMES    = ["9:00-10:20","10:30-11:50","13:00-14:20","14:00-15:20","15:30-16:50","17:00-18:20","18:30-19:50","20:00-21:20"];
+const DAYS_ALL = ["Mon","Tue","Wed","Thu","Fri","Sat"];
+const ROOM_NAMES = ROOMS.map(r=>r.name);
+
+let nextId = 1000;
+let schedule = [
+  {id:1,  level:"Kids 1",          teacher:"Gulnora",    days:["Tue","Thu","Sat"], time:"9:00-10:20",   room:"Kids",               students:7},
+  {id:2,  level:"Kids 3",          teacher:"Guzal",      days:["Tue","Thu","Sat"], time:"10:30-11:50",  room:"Kids",               students:17},
+  {id:3,  level:"Kids 2",          teacher:"Guzal",      days:["Tue","Thu","Sat"], time:"15:30-16:50",  room:"Kids",               students:11},
+  {id:4,  level:"Kids 3",          teacher:"Guzal",      days:["Mon","Wed","Fri"], time:"9:00-10:20",   room:"Kids",               students:11},
+  {id:5,  level:"Kids 3",          teacher:"Guzal",      days:["Mon","Wed","Fri"], time:"15:30-16:50",  room:"Kids",               students:12},
+  {id:6,  level:"Kids 3",          teacher:"Rayhona",    days:["Mon","Wed","Fri"], time:"18:30-19:50",  room:"Kids",               students:6},
+  {id:7,  level:"A0",              teacher:"Guzal",      days:["Tue","Thu","Sat"], time:"14:00-15:20",  room:"New Room",           students:18},
+  {id:8,  level:"A0 kids",         teacher:"Shakhruz",   days:["Mon","Wed","Fri"], time:"15:30-16:50",  room:"Elon Mask",          students:5},
+  {id:9,  level:"A0 kids",         teacher:"Shakhruz",   days:["Mon","Wed","Fri"], time:"17:00-18:20",  room:"Elon Mask",          students:5},
+  {id:10, level:"A1 kids",         teacher:"Umid",       days:["Mon","Wed","Fri"], time:"10:30-11:50",  room:"Zuckerberg",         students:6},
+  {id:11, level:"A1",              teacher:"Zarrina",    days:["Tue","Thu","Sat"], time:"18:30-19:50",  room:"Nelson Mandela",     students:15},
+  {id:12, level:"A1 kids",         teacher:"Guzal",      days:["Mon","Wed","Fri"], time:"10:30-11:50",  room:"Kids",               students:7},
+  {id:13, level:"A1",              teacher:"Odina",      days:["Mon","Wed","Fri"], time:"15:30-16:50",  room:"Space X",            students:8},
+  {id:14, level:"A1",              teacher:"Odina",      days:["Mon","Wed","Fri"], time:"9:00-10:20",   room:"Space X",            students:14},
+  {id:15, level:"A1",              teacher:"Zarrina",    days:["Tue","Thu","Sat"], time:"14:00-15:20",  room:"Nelson Mandela",     students:14},
+  {id:16, level:"A1",              teacher:"Guzal",      days:["Tue","Thu","Sat"], time:"14:00-15:20",  room:"Kids",               students:12},
+  {id:17, level:"A1 kids",         teacher:"Guzal",      days:["Tue","Thu","Sat"], time:"9:00-10:20",   room:"Kids",               students:15},
+  {id:18, level:"A1",              teacher:"Elvira",     days:["Tue","Thu","Sat"], time:"14:00-15:20",  room:"Green Room",         students:9},
+  {id:19, level:"A2 kids",         teacher:"Umid",       days:["Mon","Wed","Fri"], time:"9:00-10:20",   room:"Zuckerberg",         students:15},
+  {id:20, level:"A2",              teacher:"Odina",      days:["Tue","Thu","Sat"], time:"10:30-11:50",  room:"Space X",            students:10},
+  {id:21, level:"A2",              teacher:"Odina",      days:["Tue","Thu","Sat"], time:"14:00-15:20",  room:"Space X",            students:13},
+  {id:22, level:"A2 kids",         teacher:"Shahzoda",   days:["Tue","Thu","Sat"], time:"17:00-18:20",  room:"Einstein",           students:7},
+  {id:23, level:"A2",              teacher:"Khamidillo", days:["Mon","Wed","Fri"], time:"17:00-18:20",  room:"Exam Room",          students:17},
+  {id:24, level:"A2",              teacher:"Zarrina",    days:["Tue","Thu","Sat"], time:"18:30-19:50",  room:"Nelson Mandela",     students:17},
+  {id:25, level:"A2",              teacher:"Shakhruz",   days:["Tue","Thu","Sat"], time:"14:00-15:20",  room:"Elon Mask",          students:9},
+  {id:26, level:"A2",              teacher:"Gulnora",    days:["Tue","Thu","Sat"], time:"10:30-11:50",  room:"New Room",           students:12},
+  {id:27, level:"B1",              teacher:"Odina",      days:["Tue","Thu","Sat"], time:"10:30-11:50",  room:"Space X",            students:13},
+  {id:28, level:"B1",              teacher:"Shahzoda",   days:["Tue","Thu","Sat"], time:"14:00-15:20",  room:"Einstein",           students:7},
+  {id:29, level:"B1",              teacher:"Elvira",     days:["Mon","Wed","Fri"], time:"9:00-10:20",   room:"Green Room",         students:6},
+  {id:30, level:"B1",              teacher:"Zarrina",    days:["Mon","Wed","Fri"], time:"9:00-10:20",   room:"Nelson Mandela",     students:12},
+  {id:31, level:"B1",              teacher:"Zarrina",    days:["Mon","Wed","Fri"], time:"15:30-16:50",  room:"Nelson Mandela",     students:14},
+  {id:32, level:"B1",              teacher:"Sadoqat",    days:["Tue","Thu","Sat"], time:"14:00-15:20",  room:"Quadrant",           students:16},
+  {id:33, level:"B1",              teacher:"Rayhona",    days:["Tue","Thu","Sat"], time:"15:30-16:50",  room:"Quadrant",           students:18},
+  {id:34, level:"B1",              teacher:"Umid",       days:["Tue","Thu","Sat"], time:"18:30-19:50",  room:"Zuckerberg",         students:11},
+  {id:35, level:"B1",              teacher:"Umid",       days:["Mon","Wed","Fri"], time:"15:30-16:50",  room:"Zuckerberg",         students:14},
+  {id:36, level:"B1",              teacher:"Umid",       days:["Tue","Thu","Sat"], time:"9:00-10:20",   room:"Zuckerberg",         students:16},
+  {id:37, level:"B1+",             teacher:"Odina",      days:["Tue","Thu","Sat"], time:"17:00-18:20",  room:"Space X",            students:10},
+  {id:38, level:"B1+",             teacher:"Shahzoda",   days:["Mon","Wed","Fri"], time:"14:00-15:20",  room:"Einstein",           students:10},
+  {id:39, level:"B1+",             teacher:"Sadoqat",    days:["Mon","Wed","Fri"], time:"14:00-15:20",  room:"Quadrant",           students:11},
+  {id:40, level:"B1+",             teacher:"Umid",       days:["Tue","Thu","Sat"], time:"20:00-21:20",  room:"Zuckerberg",         students:4},
+  {id:41, level:"B1+",             teacher:"Shahzoda",   days:["Mon","Wed","Fri"], time:"10:30-11:50",  room:"Einstein",           students:10},
+  {id:42, level:"B1+",             teacher:"Anna",       days:["Tue","Thu","Sat"], time:"10:30-11:50",  room:"National Geographic", students:13},
+  {id:43, level:"B1+",             teacher:"Anna",       days:["Mon","Wed","Fri"], time:"17:00-18:20",  room:"National Geographic", students:13},
+  {id:44, level:"B1+",             teacher:"Odina",      days:["Tue","Thu","Sat"], time:"15:30-16:50",  room:"Space X",            students:17},
+  {id:45, level:"B1+",             teacher:"Elvira",     days:["Mon","Wed","Fri"], time:"15:30-16:50",  room:"Green Room",         students:15},
+  {id:46, level:"B2",              teacher:"Umid",       days:["Tue","Thu","Sat"], time:"14:00-15:20",  room:"Zuckerberg",         students:11},
+  {id:47, level:"B2",              teacher:"Shahzoda",   days:["Tue","Thu","Sat"], time:"15:30-16:50",  room:"Einstein",           students:13},
+  {id:48, level:"B2",              teacher:"Shahzoda",   days:["Mon","Wed","Fri"], time:"9:00-10:20",   room:"Einstein",           students:9},
+  {id:49, level:"B2",              teacher:"Anna",       days:["Tue","Thu","Sat"], time:"15:30-16:50",  room:"National Geographic", students:19},
+  {id:50, level:"B2",              teacher:"Anna",       days:["Tue","Thu","Sat"], time:"9:00-10:20",   room:"National Geographic", students:12},
+  {id:51, level:"B2",              teacher:"Zarrina",    days:["Mon","Wed","Fri"], time:"14:00-15:20",  room:"Nelson Mandela",     students:12},
+  {id:52, level:"Pre-IELTS 1st",   teacher:"Sadoqat",    days:["Mon","Wed","Fri"], time:"15:30-16:50",  room:"Quadrant",           students:7},
+  {id:53, level:"Pre-IELTS 1st",   teacher:"Shakhruz",   days:["Tue","Thu","Sat"], time:"18:30-19:50",  room:"Elon Mask",          students:8},
+  {id:54, level:"Pre-IELTS 2nd",   teacher:"Zarrina",    days:["Mon","Wed","Fri"], time:"17:00-18:20",  room:"Nelson Mandela",     students:13},
+  {id:55, level:"Pre-IELTS 2nd",   teacher:"Zarrina",    days:["Tue","Thu","Sat"], time:"15:30-16:50",  room:"Nelson Mandela",     students:10},
+  {id:56, level:"Pre-IELTS 2nd",   teacher:"Khamidillo", days:["Mon","Wed","Fri"], time:"14:00-15:20",  room:"Exam Room",          students:11},
+  {id:57, level:"Pre-IELTS 1st",   teacher:"Odina",      days:["Tue","Thu","Sat"], time:"9:00-10:20",   room:"Space X",            students:10},
+  {id:58, level:"Pre-IELTS 1st",   teacher:"Odina",      days:["Mon","Wed","Fri"], time:"14:00-15:20",  room:"Space X",            students:16},
+  {id:59, level:"Pre-IELTS 3rd",   teacher:"Shahzoda",   days:["Mon","Wed","Fri"], time:"15:30-16:50",  room:"Einstein",           students:18},
+  {id:60, level:"IELTS 2nd",       teacher:"Khamidillo", days:["Tue","Thu","Sat"], time:"10:30-11:50",  room:"Exam Room",          students:12},
+  {id:61, level:"IELTS 2nd",       teacher:"Khamidillo", days:["Mon","Wed","Fri"], time:"15:30-16:50",  room:"Exam Room",          students:16},
+  {id:62, level:"IELTS 1st",       teacher:"Odina",      days:["Mon","Wed","Fri"], time:"17:00-18:20",  room:"Space X",            students:12},
+  {id:63, level:"IELTS 1st",       teacher:"Anna",       days:["Tue","Thu","Sat"], time:"17:00-18:20",  room:"National Geographic", students:13},
+  {id:64, level:"CEFR 1st",        teacher:"Zarrina",    days:["Mon","Wed","Fri"], time:"10:30-11:50",  room:"Nelson Mandela",     students:10},
+  {id:65, level:"CEFR 2nd",        teacher:"Zarrina",    days:["Tue","Thu","Sat"], time:"17:00-18:20",  room:"Nelson Mandela",     students:10},
+  {id:66, level:"CEFR 2nd",        teacher:"Shakhruz",   days:["Tue","Thu","Sat"], time:"15:30-16:50",  room:"Elon Mask",          students:7},
+];
+
+// ══════════════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════════════
+let editingId   = null;
+let filterTeacher = "All", filterRoom = "All", filterDay = "All";
+let activeTab   = "schedule";
+let editForm    = {};
+
+// ══════════════════════════════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════════════════════════════
+const cap = r => ROOM_CAP[r] || 18;
+const daysOverlap = (d1,d2) => d1.some(d=>d2.includes(d));
+
+function getConflicts() {
+  const issues = [];
+  schedule.forEach((g,i) => {
+    if (g.students > cap(g.room))
+      issues.push({ids:[g.id], type:"overflow", msg:`${g.level} (${g.teacher}): ${g.students} students > ${cap(g.room)} capacity in ${g.room}`});
+    schedule.forEach((h,j) => {
+      if (j<=i) return;
+      if (g.room===h.room && daysOverlap(g.days,h.days) && g.time===h.time)
+        issues.push({ids:[g.id,h.id], type:"room", msg:`Room conflict: ${g.room} at ${g.time} — ${g.level}(${g.teacher}) vs ${h.level}(${h.teacher})`});
+      if (g.teacher===h.teacher && daysOverlap(g.days,h.days) && g.time===h.time)
+        issues.push({ids:[g.id,h.id], type:"teacher", msg:`Teacher conflict: ${g.teacher} at ${g.time} — ${g.level} vs ${h.level}`});
+    });
+  });
+  return issues;
+}
+function conflictIdSet() {
+  return new Set(getConflicts().flatMap(c=>c.ids));
+}
+function statusTag(g) {
+  const c=cap(g.room), pct=g.students/c;
+  if(g.students>c) return `<span class="status-tag tag-over">⚠ OVERFLOW</span>`;
+  if(pct>=0.9)     return `<span class="status-tag tag-near">🔶 Nearly Full</span>`;
+  return `<span class="status-tag tag-ok">✅ OK</span>`;
+}
+function sel(opts, val, id) {
+  return `<select id="${id}">${opts.map(o=>`<option${o===val?' selected':''}>${o}</option>`).join('')}</select>`;
+}
+
+// ══════════════════════════════════════════════════════════════
+// RENDER: SCHEDULE
+// ══════════════════════════════════════════════════════════════
+function renderSchedule() {
+  const cids = conflictIdSet();
+  const filtered = schedule.filter(g =>
+    (filterTeacher==="All"||g.teacher===filterTeacher) &&
+    (filterRoom==="All"||g.room===filterRoom) &&
+    (filterDay==="All"||g.days.includes(filterDay))
+  );
+
+  let html = `
+  <div class="toolbar">
+    <select onchange="filterTeacher=this.value;renderSchedule()">
+      <option>All</option>${TEACHERS.map(t=>`<option${filterTeacher===t?' selected':''}>${t}</option>`).join('')}
+    </select>
+    <select onchange="filterRoom=this.value;renderSchedule()">
+      <option>All</option>${ROOM_NAMES.map(r=>`<option${filterRoom===r?' selected':''}>${r}</option>`).join('')}
+    </select>
+    <select onchange="filterDay=this.value;renderSchedule()">
+      <option>All</option>${DAYS_ALL.map(d=>`<option${filterDay===d?' selected':''}>${d}</option>`).join('')}
+    </select>
+    <button class="btn btn-gold" onclick="openAdd()">+ Add Group</button>
+    <span style="margin-left:auto;font-size:0.72rem;color:var(--gray)">${filtered.length} of ${schedule.length} groups</span>
+  </div>`;
+
+  if (editingId === 'new') html += renderEditPanel(null);
+
+  html += `<div class="tbl-wrap"><table>
+  <thead><tr>
+    <th>#</th><th>Level</th><th>Teacher</th><th>Days</th><th>Time</th>
+    <th>Room</th><th>Students</th><th>Status</th><th></th>
+  </tr></thead><tbody>`;
+
+  filtered.forEach((g,i) => {
+    const over = g.students > cap(g.room);
+    const conf = cids.has(g.id);
+    const editing = editingId === g.id;
+    let rowClass = over ? 'overflow-row' : conf ? '' : '';
+    if (editing) rowClass = 'edit-row';
+
+    html += `<tr class="${rowClass}">
+      <td style="color:var(--gray);font-size:0.72rem">${i+1}</td>
+      <td class="level-cell">${g.level}</td>
+      <td class="teacher-cell">${g.teacher}</td>
+      <td><div class="day-pills">${g.days.map(d=>`<span class="day-pill">${d}</span>`).join('')}</div></td>
+      <td class="time-cell">${g.time}</td>
+      <td>${g.room}</td>
+      <td class="students-cell ${over?'over':''}">${g.students}/${cap(g.room)}</td>
+      <td>${statusTag(g)}</td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-ghost btn-sm" onclick="toggleEdit(${g.id})">${editing?'✕ Close':'✏ Edit'}</button>
+        <button class="btn btn-red btn-sm" onclick="deleteGroup(${g.id})" style="margin-left:4px">🗑</button>
+      </td>
+    </tr>`;
+    if (editing) html += `<tr class="edit-row"><td colspan="9" style="padding:0;background:var(--bg2)">${renderEditPanel(g)}</td></tr>`;
+  });
+
+  html += `</tbody></table></div>`;
+  document.getElementById('page-schedule').innerHTML = html;
+}
+
+function renderEditPanel(g) {
+  const isNew = !g;
+  const f = isNew ? {level:LEVELS[0],teacher:TEACHERS[0],days:["Mon","Wed","Fri"],time:TIMES[0],room:ROOM_NAMES[0],students:10} : g;
+  const overWarn = !isNew && f.students > cap(f.room);
+  return `<div class="edit-panel">
+    <div class="edit-panel-title">${isNew?'➕ Add New Group':`✏ Editing: ${g.level} — ${g.teacher}`}</div>
+    <div class="edit-grid">
+      <div class="field"><label>Level</label>${sel(LEVELS,f.level,'ef-level')}</div>
+      <div class="field"><label>Teacher</label>${sel(TEACHERS,f.teacher,'ef-teacher')}</div>
+      <div class="field"><label>Time Slot</label>${sel(TIMES,f.time,'ef-time')}</div>
+      <div class="field"><label>Room</label>${sel(ROOM_NAMES,f.room,'ef-room')}</div>
+      <div class="field"><label>Students</label><input type="number" id="ef-students" min="1" max="60" value="${f.students}" oninput="checkOverflow()"></div>
+      <div class="field" style="grid-column:1/-1"><label>Days</label>
+        <div class="day-toggle-group">
+          ${DAYS_ALL.map(d=>`<button class="day-toggle ${f.days.includes(d)?'on':''}" onclick="toggleDay('${d}',this)">${d}</button>`).join('')}
+        </div>
+      </div>
+    </div>
+    <div id="warn-overflow" class="warn-banner" style="display:${overWarn?'block':'none'}">
+      ⚠ Students exceed room capacity!
+    </div>
+    <div class="edit-actions">
+      <button class="btn btn-gold" onclick="${isNew?'saveNew()':'saveEdit('+g.id+')'}">${isNew?'Add Group':'Save Changes'}</button>
+      <button class="btn btn-ghost" onclick="cancelEdit()">Cancel</button>
+    </div>
+  </div>`;
+}
+
+function checkOverflow() {
+  const s = parseInt(document.getElementById('ef-students')?.value)||0;
+  const r = document.getElementById('ef-room')?.value;
+  const w = document.getElementById('warn-overflow');
+  if (w && r) w.style.display = s > cap(r) ? 'block' : 'none';
+}
+
+function getFormData() {
+  const days = [...document.querySelectorAll('.day-toggle.on')].map(b=>b.textContent.trim());
+  return {
+    level:    document.getElementById('ef-level').value,
+    teacher:  document.getElementById('ef-teacher').value,
+    time:     document.getElementById('ef-time').value,
+    room:     document.getElementById('ef-room').value,
+    students: parseInt(document.getElementById('ef-students').value)||0,
+    days,
+  };
+}
+
+function openAdd()         { editingId='new'; renderAll(); }
+function cancelEdit()      { editingId=null;  renderAll(); }
+function toggleEdit(id)    { editingId = editingId===id ? null : id; renderAll(); }
+function deleteGroup(id)   { schedule=schedule.filter(g=>g.id!==id); if(editingId===id)editingId=null; renderAll(); }
+
+function saveNew() {
+  const f = getFormData();
+  if (!f.days.length) { alert("Select at least one day"); return; }
+  schedule.push({id:nextId++, ...f});
+  editingId=null; renderAll();
+}
+function saveEdit(id) {
+  const f = getFormData();
+  if (!f.days.length) { alert("Select at least one day"); return; }
+  schedule = schedule.map(g => g.id===id ? {...g,...f} : g);
+  editingId=null; renderAll();
+}
+function toggleDay(day, btn) {
+  btn.classList.toggle('on');
+  checkOverflow();
+}
+
+// ══════════════════════════════════════════════════════════════
+// RENDER: ROOM GRID
+// ══════════════════════════════════════════════════════════════
+function renderRooms() {
+  let html = '';
+  ROOMS.forEach(room => {
+    const groups = schedule.filter(g=>g.room===room.name);
+    const usedSlots = new Set();
+    groups.forEach(g=>g.days.forEach(d=>usedSlots.add(d+g.time)));
+    const pct = Math.round(usedSlots.size / (TIMES.length*6) * 100);
+    const barColor = pct>80?'var(--red)':pct>55?'var(--orange)':'var(--green)';
+
+    html += `<div class="room-block">
+      <div class="room-hdr">
+        <div class="room-hdr-name">${room.name}</div>
+        <div class="room-hdr-bar-wrap"><div class="room-hdr-bar" style="width:${pct}%;background:${barColor}"></div></div>
+        <div class="room-hdr-cap">Cap: ${room.cap} · ${pct}% used</div>
+      </div>
+      <div class="room-tbl-wrap"><table class="room-tbl">
+        <thead><tr><th>Time</th>${DAYS_ALL.map(d=>`<th>${d}</th>`).join('')}</tr></thead>
+        <tbody>`;
+
+    TIMES.forEach(ts => {
+      html += `<tr><td>${ts}</td>`;
+      DAYS_ALL.forEach(day => {
+        const g = schedule.find(g=>g.room===room.name && g.days.includes(day) && g.time===ts);
+        if (g) {
+          const over = g.students > room.cap;
+          html += `<td class="${over?'booked-over':'booked'}" onclick="jumpToEdit(${g.id})">
+            <div class="grid-cell-content ${over?'grid-cell-over':''}">
+              <div class="grid-cell-level">${g.level}</div>
+              <div class="grid-cell-teacher">${g.teacher}</div>
+              <div class="grid-cell-count">${g.students}/${room.cap}${over?' ⚠':''}</div>
+            </div></td>`;
+        } else {
+          html += `<td><span class="empty-cell">—</span></td>`;
+        }
+      });
+      html += `</tr>`;
+    });
+
+    html += `</tbody></table></div></div>`;
+  });
+  document.getElementById('page-rooms').innerHTML = html;
+}
+
+function jumpToEdit(id) {
+  switchTab('schedule');
+  filterTeacher='All'; filterRoom='All'; filterDay='All';
+  editingId = id;
+  renderAll();
+  setTimeout(()=>{
+    const rows = document.querySelectorAll('#page-schedule tr.edit-row');
+    if(rows[1]) rows[1].scrollIntoView({behavior:'smooth',block:'center'});
+  },100);
+}
+
+// ══════════════════════════════════════════════════════════════
+// RENDER: SUMMARY
+// ══════════════════════════════════════════════════════════════
+function renderSummary() {
+  const conflicts = getConflicts();
+  const totalStudents = schedule.reduce((s,g)=>s+g.students,0);
+  const overflows = conflicts.filter(c=>c.type==='overflow');
+  const usedSet = new Set(); schedule.forEach(g=>g.days.forEach(d=>usedSet.add(g.room+d+g.time)));
+  const totalSlots = ROOMS.reduce((s,r)=>s+TIMES.length*6,0);
+  const branchPct = Math.round(usedSet.size/totalSlots*100);
+  const avgFill = schedule.length ? Math.round(schedule.reduce((s,g)=>s+g.students/cap(g.room),0)/schedule.length*100) : 0;
+
+  let html = `<div class="kpi-row">
+    <div class="kpi-card"><div class="kpi-val" style="color:var(--gold)">${schedule.length}</div><div class="kpi-label">Total Groups</div></div>
+    <div class="kpi-card"><div class="kpi-val" style="color:var(--green)">${totalStudents}</div><div class="kpi-label">Total Students</div></div>
+    <div class="kpi-card"><div class="kpi-val" style="color:${conflicts.length>0?'var(--red)':'var(--green)'}">${conflicts.length}</div><div class="kpi-label">Issues / Conflicts</div></div>
+    <div class="kpi-card">
+      <div class="kpi-val" style="color:var(--gold)">${branchPct}%</div>
+      <div class="kpi-label">Branch Slot Fullness</div>
+      <div class="kpi-bar"><div class="kpi-bar-fill" style="width:${branchPct}%;background:${branchPct>80?'var(--red)':branchPct>55?'var(--orange)':'var(--green)'}"></div></div>
+    </div>
+  </div>`;
+
+  // Issues
+  if (conflicts.length > 0) {
+    html += `<div class="conflict-box"><div class="conflict-box-title">⚠ Issues Detected (${conflicts.length})</div>`;
+    conflicts.forEach(c => {
+      const badge = c.type==='overflow'?'🔴 Overflow':c.type==='room'?'🟠 Room Conflict':'🟡 Teacher Conflict';
+      html += `<div class="conflict-item"><span class="conflict-badge badge-over">${badge}</span>${c.msg}</div>`;
+    });
+    html += `</div>`;
+  } else {
+    html += `<div class="ok-banner">✅ No issues detected — all groups fit their rooms and no conflicts found!</div>`;
+  }
+
+  // Room bars
+  html += `<div class="section-title">Room Utilisation</div><div class="room-bars">`;
+  ROOMS.forEach(room => {
+    const groups = schedule.filter(g=>g.room===room.name);
+    const usedS = new Set(); groups.forEach(g=>g.days.forEach(d=>usedS.add(d+g.time)));
+    const pct = Math.round(usedS.size/(TIMES.length*6)*100);
+    const ovfCount = groups.filter(g=>g.students>room.cap).length;
+    const hasOvf = ovfCount > 0;
+    const barColor = hasOvf?'var(--red)':pct>80?'var(--orange)':'var(--green)';
+    const totalStu = groups.reduce((s,g)=>s+g.students,0);
+
+    html += `<div class="room-bar-card ${hasOvf?'has-overflow':''}">
+      <div class="rbc-top">
+        <div class="rbc-name" style="color:${hasOvf?'var(--red)':'var(--white)'}">${room.name}</div>
+        <div class="rbc-meta">cap ${room.cap} · ${groups.length} groups · ${totalStu} students</div>
+      </div>
+      <div class="rbc-bar"><div class="rbc-bar-fill" style="width:${Math.min(pct,100)}%;background:${barColor}"></div></div>
+      <div class="rbc-bottom">
+        <span>${pct}% time slots used</span>
+        ${hasOvf ? `<span style="color:var(--red)">🔴 ${ovfCount} overflow(s)</span>` : `<span style="color:var(--green)">✅ No overflow</span>`}
+      </div>
+    </div>`;
+  });
+  html += `</div>`;
+
+  document.getElementById('page-summary').innerHTML = html;
+}
+
+// ══════════════════════════════════════════════════════════════
+// GLOBAL RENDER + TABS
+// ══════════════════════════════════════════════════════════════
+function renderAll() {
+  renderSchedule();
+  renderRooms();
+  renderSummary();
+  // Badge
+  const n = getConflicts().length;
+  const badge = document.getElementById('headerBadge');
+  badge.textContent = `${n} issue${n!==1?'s':''}`;
+  badge.classList.toggle('show', n>0);
+  // Re-attach overflow listener after render
+  const roomSel = document.getElementById('ef-room');
+  if(roomSel) roomSel.addEventListener('change', checkOverflow);
+}
+
+function switchTab(tab) {
+  activeTab = tab;
+  document.querySelectorAll('.tab').forEach((t,i)=>{
+    const tabs=['schedule','rooms','summary'];
+    t.classList.toggle('active', tabs[i]===tab);
+  });
+  document.querySelectorAll('.page').forEach(p=>{
+    p.classList.toggle('active', p.id==='page-'+tab);
+  });
+}
+
+// ── INIT
+renderAll();
+</script>
+</body>
+</html>
