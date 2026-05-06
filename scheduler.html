@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Gagarina Branch Scheduler</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js"></script>
 <style>
 :root {
   --bg: #0e0e0e; --bg2: #161616; --bg3: #1c1c1c; --bg4: #222;
@@ -144,6 +146,10 @@ td.students-cell.over { color: var(--red); }
 .rbc-bottom { display: flex; justify-content: space-between; margin-top: 5px; font-size: 0.68rem; color: var(--gray); }
 .ok-banner { background: var(--green-dim); border: 1px solid rgba(46,204,113,0.2); border-radius: var(--radius); padding: 12px 16px; color: var(--green); font-size: 0.82rem; font-family: var(--font-head); font-weight: 700; }
 
+/* ── LOADING ── */
+.loading-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(14,14,14,0.9); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+.loading-spinner { font-size: 1.5rem; color: var(--gold); font-family: var(--font-head); }
+
 /* ── RESPONSIVE ── */
 @media (max-width: 700px) {
   .kpi-row { grid-template-columns: 1fr 1fr; }
@@ -171,11 +177,31 @@ td.students-cell.over { color: var(--red); }
   <button class="tab" onclick="switchTab('summary')">📊 Summary</button>
 </div>
 
+<div id="loading" class="loading-overlay" style="display:flex">
+  <div class="loading-spinner">Loading schedule...</div>
+</div>
+
 <div id="page-schedule" class="page active"></div>
 <div id="page-rooms"    class="page"></div>
 <div id="page-summary"  class="page"></div>
 
 <script>
+// ══════════════════════════════════════════════════════════════
+// FIREBASE CONFIG & INIT
+// ══════════════════════════════════════════════════════════════
+const firebaseConfig = {
+  apiKey: "AIzaSyBjzJ2jyp8uZer3UEI33KrKfKCKOGQQIsY",
+  authDomain: "pcrm-e418e.firebaseapp.com",
+  projectId: "pcrm-e418e",
+  storageBucket: "pcrm-e418e.firebasestorage.app",
+  messagingSenderId: "1026136725350",
+  appId: "1:1026136725350:web:5b37c652ff3352e9369aa7"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const scheduleRef = db.ref('schedule');
+
 // ══════════════════════════════════════════════════════════════
 // DATA
 // ══════════════════════════════════════════════════════════════
@@ -192,8 +218,10 @@ const TIMES    = ["9:00-10:20","10:30-11:50","13:00-14:20","14:00-15:20","15:30-
 const DAYS_ALL = ["Mon","Tue","Wed","Thu","Fri","Sat"];
 const ROOM_NAMES = ROOMS.map(r=>r.name);
 
-let nextId = 1000;
-let schedule = [
+let schedule = [];
+let isLoaded = false;
+
+const INITIAL_DATA = [
   {id:1,  level:"Kids 1",          teacher:"Gulnora",    days:["Tue","Thu","Sat"], time:"9:00-10:20",   room:"Kids",               students:7},
   {id:2,  level:"Kids 3",          teacher:"Guzal",      days:["Tue","Thu","Sat"], time:"10:30-11:50",  room:"Kids",               students:17},
   {id:3,  level:"Kids 2",          teacher:"Guzal",      days:["Tue","Thu","Sat"], time:"15:30-16:50",  room:"Kids",               students:11},
@@ -269,6 +297,27 @@ let editingId   = null;
 let filterTeacher = "All", filterRoom = "All", filterDay = "All";
 let activeTab   = "schedule";
 let editForm    = {};
+
+// ══════════════════════════════════════════════════════════════
+// FIREBASE LISTENERS & SYNC
+// ══════════════════════════════════════════════════════════════
+scheduleRef.on('value', (snapshot) => {
+  const data = snapshot.val();
+  if (data) {
+    schedule = Object.keys(data).map(key => ({...data[key], id: key}));
+  } else {
+    schedule = [];
+  }
+  isLoaded = true;
+  document.getElementById('loading').style.display = 'none';
+  renderAll();
+});
+
+function seedInitialData() {
+  scheduleRef.set(
+    Object.fromEntries(INITIAL_DATA.map((g, i) => [i+1, {level: g.level, teacher: g.teacher, days: g.days, time: g.time, room: g.room, students: g.students}]))
+  );
+}
 
 // ══════════════════════════════════════════════════════════════
 // HELPERS
@@ -416,19 +465,19 @@ function getFormData() {
 function openAdd()         { editingId='new'; renderAll(); }
 function cancelEdit()      { editingId=null;  renderAll(); }
 function toggleEdit(id)    { editingId = editingId===id ? null : id; renderAll(); }
-function deleteGroup(id)   { schedule=schedule.filter(g=>g.id!==id); if(editingId===id)editingId=null; renderAll(); }
+function deleteGroup(id)   { scheduleRef.child(id).remove(); if(editingId===id)editingId=null; }
 
 function saveNew() {
   const f = getFormData();
   if (!f.days.length) { alert("Select at least one day"); return; }
-  schedule.push({id:nextId++, ...f});
-  editingId=null; renderAll();
+  scheduleRef.push(f);
+  editingId=null;
 }
 function saveEdit(id) {
   const f = getFormData();
   if (!f.days.length) { alert("Select at least one day"); return; }
-  schedule = schedule.map(g => g.id===id ? {...g,...f} : g);
-  editingId=null; renderAll();
+  scheduleRef.child(id).update(f);
+  editingId=null;
 }
 function toggleDay(day, btn) {
   btn.classList.toggle('on');
@@ -584,7 +633,11 @@ function switchTab(tab) {
 }
 
 // ── INIT
-renderAll();
+scheduleRef.once('value', (snapshot) => {
+  if (!snapshot.exists()) {
+    seedInitialData();
+  }
+});
 </script>
 </body>
 </html>
