@@ -151,6 +151,11 @@ td.students-cell.over { color: var(--red); }
 .loading-overlay.hidden { display: none !important; }
 .loading-spinner { font-size: 1.5rem; color: var(--gold); font-family: var(--font-head); }
 
+/* ── TOAST ── */
+.toast { position: fixed; bottom: 20px; right: 20px; background: var(--green); color: #111; padding: 14px 20px; border-radius: var(--radius); font-family: var(--font-head); font-weight: 700; z-index: 999; animation: slideIn 0.3s ease; }
+@keyframes slideIn { from { transform: translateX(400px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+@keyframes slideOut { to { transform: translateX(400px); opacity: 0; } }
+
 /* ── RESPONSIVE ── */
 @media (max-width: 700px) {
   .kpi-row { grid-template-columns: 1fr 1fr; }
@@ -353,6 +358,17 @@ setTimeout(() => {
 const cap = r => ROOM_CAP[r] || 18;
 const daysOverlap = (d1,d2) => d1.some(d=>d2.includes(d));
 
+function showToast(message, duration = 3000) {
+  const toast = document.createElement('div');
+  toast.className = 'toast';
+  toast.textContent = message;
+  document.body.appendChild(toast);
+  setTimeout(() => {
+    toast.style.animation = 'slideOut 0.3s ease forwards';
+    setTimeout(() => toast.remove(), 300);
+  }, duration);
+}
+
 function getConflicts() {
   const issues = [];
   schedule.forEach((g,i) => {
@@ -432,8 +448,8 @@ function renderSchedule() {
       <td class="students-cell ${over?'over':''}">${g.students}/${cap(g.room)}</td>
       <td>${statusTag(g)}</td>
       <td style="white-space:nowrap">
-        <button class="btn btn-ghost btn-sm" onclick="toggleEdit(${g.id})">${editing?'✕ Close':'✏ Edit'}</button>
-        <button class="btn btn-red btn-sm" onclick="deleteGroup(${g.id})" style="margin-left:4px">🗑</button>
+        <button class="btn btn-ghost btn-sm" onclick="toggleEdit('${g.id}')">${editing?'✕ Close':'✏ Edit'}</button>
+        <button class="btn btn-red btn-sm" onclick="deleteGroup('${g.id}')" style="margin-left:4px">🗑</button>
       </td>
     </tr>`;
     if (editing) html += `<tr class="edit-row"><td colspan="9" style="padding:0;background:var(--bg2)">${renderEditPanel(g)}</td></tr>`;
@@ -465,7 +481,7 @@ function renderEditPanel(g) {
       ⚠ Students exceed room capacity!
     </div>
     <div class="edit-actions">
-      <button class="btn btn-gold" onclick="${isNew?'saveNew()':'saveEdit('+g.id+')'}">${isNew?'Add Group':'Save Changes'}</button>
+      <button class="btn btn-gold" onclick="${isNew?'saveNew()':'saveEdit(\''+g.id+'\')'}">${isNew?'Add Group':'Save Changes'}</button>
       <button class="btn btn-ghost" onclick="cancelEdit()">Cancel</button>
     </div>
   </div>`;
@@ -494,7 +510,15 @@ function getFormData() {
 function openAdd()         { console.log('openAdd called'); editingId='new'; renderAll(); }
 function cancelEdit()      { console.log('cancelEdit called'); editingId=null;  renderAll(); }
 function toggleEdit(id)    { console.log('toggleEdit called', id); editingId = editingId===id ? null : id; renderAll(); }
-function deleteGroup(id)   { console.log('deleteGroup called', id); scheduleRef.child(id).remove(); if(editingId===id)editingId=null; }
+function deleteGroup(id)   {
+  console.log('deleteGroup called', id);
+  scheduleRef.child(id).remove().then(() => {
+    showToast('✅ Group deleted successfully!');
+  }).catch(err => {
+    alert('Error deleting: ' + err.message);
+  });
+  if(editingId===id)editingId=null;
+}
 
 function saveNew() {
   console.log('saveNew called');
@@ -505,6 +529,7 @@ function saveNew() {
   scheduleRef.push(f).then(() => {
     console.log('Save successful');
     editingId=null;
+    showToast('✅ Group added successfully!');
   }).catch(err => {
     console.error('Firebase error:', err);
     alert('Error saving: ' + err.message);
@@ -515,6 +540,7 @@ function saveEdit(id) {
   if (!f.days.length) { alert("Select at least one day"); return; }
   scheduleRef.child(id).update(f).then(() => {
     editingId=null;
+    showToast('✅ Group updated successfully!');
   }).catch(err => {
     alert('Error saving: ' + err.message);
   });
