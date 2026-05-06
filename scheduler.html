@@ -301,23 +301,44 @@ let editForm    = {};
 // ══════════════════════════════════════════════════════════════
 // FIREBASE LISTENERS & SYNC
 // ══════════════════════════════════════════════════════════════
-scheduleRef.on('value', (snapshot) => {
-  const data = snapshot.val();
-  if (data) {
-    schedule = Object.keys(data).map(key => ({...data[key], id: key}));
-  } else {
-    schedule = [];
-  }
-  isLoaded = true;
-  document.getElementById('loading').style.display = 'none';
-  renderAll();
-});
+function hideLoading() {
+  const loader = document.getElementById('loading');
+  if (loader) loader.style.display = 'none';
+}
 
 function seedInitialData() {
-  scheduleRef.set(
-    Object.fromEntries(INITIAL_DATA.map((g, i) => [i+1, {level: g.level, teacher: g.teacher, days: g.days, time: g.time, room: g.room, students: g.students}]))
-  );
+  const initialMap = {};
+  INITIAL_DATA.forEach((g, i) => {
+    initialMap[i+1] = {level: g.level, teacher: g.teacher, days: g.days, time: g.time, room: g.room, students: g.students};
+  });
+  scheduleRef.set(initialMap);
 }
+
+let listenerAttached = false;
+
+scheduleRef.on('value', (snapshot) => {
+  try {
+    const data = snapshot.val();
+    if (data) {
+      schedule = Object.keys(data).map(key => ({...data[key], id: key}));
+    } else {
+      schedule = [];
+    }
+    isLoaded = true;
+    hideLoading();
+    renderAll();
+  } catch (e) {
+    console.error('Firebase listener error:', e);
+    hideLoading();
+  }
+}, (error) => {
+  console.error('Firebase error:', error);
+  hideLoading();
+});
+
+setTimeout(() => {
+  hideLoading();
+}, 5000);
 
 // ══════════════════════════════════════════════════════════════
 // HELPERS
@@ -633,11 +654,13 @@ function switchTab(tab) {
 }
 
 // ── INIT
-scheduleRef.once('value', (snapshot) => {
-  if (!snapshot.exists()) {
-    seedInitialData();
-  }
-});
+setTimeout(() => {
+  scheduleRef.once('value', (snapshot) => {
+    if (!snapshot.exists()) {
+      seedInitialData();
+    }
+  });
+}, 500);
 </script>
 </body>
 </html>
