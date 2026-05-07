@@ -231,6 +231,32 @@ body.light-mode .room-hdr-cap { color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0
 .dashboard-teacher-classes { color: var(--gray2); }
 .dashboard-teacher-students { font-weight: 700; color: var(--gold); }
 
+/* ── CALENDAR ── */
+.calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding: 16px; background: linear-gradient(135deg, var(--bg2) 0%, var(--bg3) 100%); border-radius: var(--radius2); border: 1px solid var(--border); }
+.calendar-title { font-family: var(--font-head); font-size: 1.1rem; font-weight: 800; color: var(--gold); }
+.calendar-nav { display: flex; gap: 10px; align-items: center; }
+.calendar-nav button { padding: 6px 12px; background: rgba(232,197,71,0.15); border: 1px solid var(--border2); color: var(--gold); border-radius: var(--radius); cursor: pointer; font-weight: 700; transition: all 0.2s; font-size: 0.8rem; }
+.calendar-nav button:hover { background: rgba(232,197,71,0.25); border-color: var(--gold); }
+body.light-mode .calendar-nav button { background: rgba(212, 165, 32, 0.1); border-color: var(--border); color: var(--gold); }
+body.light-mode .calendar-nav button:hover { background: rgba(212, 165, 32, 0.2); }
+.calendar-week { font-family: var(--font-head); font-size: 0.85rem; color: var(--gray2); font-weight: 600; }
+.calendar-container { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius2); background: var(--bg2); }
+.calendar-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+.calendar-time { background: var(--bg3); color: var(--gray2); font-family: var(--font-mono); font-size: 0.75rem; padding: 8px 10px; text-align: center; border-right: 1px solid var(--border); font-weight: 600; width: 80px; min-width: 80px; }
+.calendar-day-header { background: linear-gradient(135deg, var(--gold) 0%, var(--gold2) 100%); color: #111; font-family: var(--font-head); font-weight: 700; text-align: center; padding: 10px; border-right: 1px solid rgba(0,0,0,0.1); min-width: 140px; }
+body.light-mode .calendar-day-header { color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+.calendar-cell { border: 1px solid var(--border); padding: 4px; height: 80px; vertical-align: top; overflow: hidden; background: var(--bg2); min-width: 140px; position: relative; }
+.calendar-cell:hover { background: rgba(232,197,71,0.05); }
+body.light-mode .calendar-cell:hover { background: rgba(212, 165, 32, 0.05); }
+.calendar-group { background: linear-gradient(135deg, rgba(91,156,246,0.2) 0%, rgba(91,156,246,0.1) 100%); border: 1.5px solid var(--blue); border-radius: 4px; padding: 4px 6px; margin-bottom: 3px; cursor: pointer; transition: all 0.2s; font-size: 0.72rem; line-height: 1.2; }
+.calendar-group:hover { box-shadow: 0 4px 12px rgba(91,156,246,0.3); transform: scale(1.02); border-color: var(--blue); }
+.calendar-group-level { font-weight: 700; color: var(--gold); font-size: 0.73rem; }
+.calendar-group-teacher { color: var(--gray2); font-size: 0.68rem; }
+.calendar-group-room { color: var(--gray2); font-size: 0.68rem; }
+.calendar-group.conflict { border-color: var(--red); background: linear-gradient(135deg, rgba(231,76,60,0.25) 0%, rgba(231,76,60,0.15) 100%); }
+.calendar-group.conflict:hover { box-shadow: 0 4px 12px rgba(231,76,60,0.4); }
+.calendar-empty { color: var(--border2); text-align: center; padding-top: 30px; font-size: 0.75rem; }
+
 /* ── RESPONSIVE: TABLET (1024px) ── */
 @media (max-width: 1024px) {
   .kpi-row { grid-template-columns: repeat(2, 1fr); }
@@ -239,6 +265,9 @@ body.light-mode .room-hdr-cap { color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0
   .settings-grid { grid-template-columns: 1fr; }
   .dashboard-kpi-row { grid-template-columns: repeat(2, 1fr); }
   .dashboard-room-grid { grid-template-columns: 1fr; }
+  .calendar-day-header { min-width: 120px; font-size: 0.8rem; }
+  .calendar-cell { min-width: 120px; height: 70px; }
+  .calendar-group { font-size: 0.68rem; padding: 3px 5px; }
 }
 
 /* ── RESPONSIVE: MOBILE (700px) ── */
@@ -273,6 +302,7 @@ body.light-mode .room-hdr-cap { color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0
 
 <div class="tabs">
   <button class="tab active" onclick="switchTab('schedule')">📋 Schedule</button>
+  <button class="tab" onclick="switchTab('calendar')">📅 Calendar</button>
   <button class="tab" onclick="switchTab('rooms')">🏫 Room Grid</button>
   <button class="tab" onclick="switchTab('dashboard')">📈 Dashboard</button>
   <button class="tab" onclick="switchTab('settings')">⚙ Settings</button>
@@ -284,6 +314,7 @@ body.light-mode .room-hdr-cap { color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0
 
 <div class="container">
   <div id="page-schedule" class="page active"></div>
+  <div id="page-calendar"  class="page"></div>
   <div id="page-rooms"    class="page"></div>
   <div id="page-dashboard" class="page"></div>
   <div id="page-settings" class="page"></div>
@@ -403,6 +434,7 @@ let editingId   = null;
 let filterTeacher = "All", filterRoom = "All", filterDay = "All";
 let activeTab   = "schedule";
 let editForm    = {};
+let calendarDate = new Date();
 
 // ══════════════════════════════════════════════════════════════
 // FIREBASE LISTENERS & SYNC
@@ -786,6 +818,129 @@ function jumpToEdit(id) {
 }
 
 // ══════════════════════════════════════════════════════════════
+// CALENDAR HELPERS
+// ══════════════════════════════════════════════════════════════
+function getMonday(date) {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+  return new Date(d.setDate(diff));
+}
+
+function formatDateRange(date) {
+  const monday = getMonday(date);
+  const sunday = new Date(monday);
+  sunday.setDate(sunday.getDate() + 6);
+  const opt = {month:'short', day:'numeric'};
+  return `Week of ${monday.toLocaleDateString('en-US', opt)} - ${sunday.toLocaleDateString('en-US', opt)}`;
+}
+
+function getWeekGroups(date) {
+  const monday = getMonday(date);
+  const weekGroups = {};
+  DAYS_ALL.forEach((day, idx) => {
+    const currentDate = new Date(monday);
+    currentDate.setDate(currentDate.getDate() + idx);
+    weekGroups[day] = {};
+    TIMES.forEach(time => {
+      weekGroups[day][time] = [];
+    });
+  });
+
+  schedule.forEach(g => {
+    g.days.forEach(day => {
+      if (weekGroups[day] && weekGroups[day][g.time]) {
+        weekGroups[day][g.time].push(g);
+      }
+    });
+  });
+  return weekGroups;
+}
+
+function prevWeek() {
+  calendarDate.setDate(calendarDate.getDate() - 7);
+  renderCalendar();
+}
+
+function nextWeek() {
+  calendarDate.setDate(calendarDate.getDate() + 7);
+  renderCalendar();
+}
+
+function todayCalendar() {
+  calendarDate = new Date();
+  renderCalendar();
+}
+
+// ══════════════════════════════════════════════════════════════
+// RENDER: CALENDAR
+// ══════════════════════════════════════════════════════════════
+function renderCalendar() {
+  const weekGroups = getWeekGroups(calendarDate);
+  const cids = conflictIdSet();
+
+  let html = `
+    <div class="calendar-header">
+      <div>
+        <div class="calendar-title">📅 Weekly Schedule</div>
+        <div class="calendar-week">${formatDateRange(calendarDate)}</div>
+      </div>
+      <div class="calendar-nav">
+        <button onclick="prevWeek()">← Prev Week</button>
+        <button onclick="todayCalendar()">Today</button>
+        <button onclick="nextWeek()">Next Week →</button>
+      </div>
+    </div>
+
+    <div class="calendar-container">
+      <table class="calendar-table">
+        <thead>
+          <tr>
+            <th class="calendar-time"></th>
+            ${DAYS_ALL.map(day => `<th class="calendar-day-header">${day}</th>`).join('')}
+          </tr>
+        </thead>
+        <tbody>`;
+
+  TIMES.forEach(time => {
+    html += `<tr>
+      <td class="calendar-time">${time}</td>`;
+
+    DAYS_ALL.forEach(day => {
+      const groups = weekGroups[day][time] || [];
+      let cellHTML = '<td class="calendar-cell">';
+
+      if (groups.length === 0) {
+        cellHTML += '<div class="calendar-empty">—</div>';
+      } else {
+        groups.forEach(g => {
+          const hasConflict = cids.has(g.id);
+          const over = g.students > cap(g.room);
+          cellHTML += `
+            <div class="calendar-group ${hasConflict || over ? 'conflict' : ''}" onclick="toggleEdit('${g.id}'); switchTab('schedule')">
+              <div class="calendar-group-level">${g.level}</div>
+              <div class="calendar-group-teacher">${g.teacher}</div>
+              <div class="calendar-group-room">${g.room}</div>
+            </div>`;
+        });
+      }
+
+      cellHTML += '</td>';
+      html += cellHTML;
+    });
+
+    html += '</tr>';
+  });
+
+  html += `
+        </tbody>
+      </table>
+    </div>`;
+
+  document.getElementById('page-calendar').innerHTML = html;
+}
+
+// ══════════════════════════════════════════════════════════════
 // RENDER: DASHBOARD
 // ══════════════════════════════════════════════════════════════
 function renderDashboard() {
@@ -921,6 +1076,7 @@ function renderSettings() {
 // ══════════════════════════════════════════════════════════════
 function renderAll() {
   renderSchedule();
+  renderCalendar();
   renderRooms();
   renderDashboard();
   renderSettings();
@@ -937,7 +1093,7 @@ function renderAll() {
 function switchTab(tab) {
   activeTab = tab;
   document.querySelectorAll('.tab').forEach((t,i)=>{
-    const tabs=['schedule','rooms','dashboard','settings'];
+    const tabs=['schedule','calendar','rooms','dashboard','settings'];
     t.classList.toggle('active', tabs[i]===tab);
   });
   document.querySelectorAll('.page').forEach(p=>{
