@@ -22,6 +22,7 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { font-size: 14px; }
 body { background: var(--bg); color: var(--white); font-family: var(--font-mono); min-height: 100vh; overflow-x: hidden; }
+.container { max-width: 1400px; margin: 0 auto; }
 
 /* ── SCROLLBAR ── */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -80,6 +81,9 @@ td.students-cell.over { color: var(--red); }
 .tag-ok { background: var(--green-dim); color: var(--green); }
 .tag-over { background: var(--red-dim); color: var(--red); }
 .tag-near { background: rgba(243,156,18,0.15); color: var(--orange); }
+.type-tag { display: inline-block; padding: 3px 10px; border-radius: 4px; font-size: 0.72rem; font-weight: 700; font-family: var(--font-head); }
+.tag-teacher { background: rgba(91,156,246,0.15); color: var(--blue); }
+.tag-academic { background: rgba(232,197,71,0.15); color: var(--gold); }
 .day-pills { display: flex; gap: 3px; flex-wrap: wrap; }
 .day-pill { font-size: 0.65rem; padding: 2px 5px; border-radius: 3px; background: var(--bg4); color: var(--gray3); }
 
@@ -156,11 +160,21 @@ td.students-cell.over { color: var(--red); }
 @keyframes slideIn { from { transform: translateX(400px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 @keyframes slideOut { to { transform: translateX(400px); opacity: 0; } }
 
-/* ── RESPONSIVE ── */
-@media (max-width: 700px) {
-  .kpi-row { grid-template-columns: 1fr 1fr; }
+/* ── RESPONSIVE: TABLET (1024px) ── */
+@media (max-width: 1024px) {
+  .kpi-row { grid-template-columns: repeat(2, 1fr); }
   .room-bars { grid-template-columns: 1fr; }
-  .edit-grid { grid-template-columns: 1fr 1fr; }
+  .edit-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* ── RESPONSIVE: MOBILE (700px) ── */
+@media (max-width: 700px) {
+  .kpi-row { grid-template-columns: 1fr; }
+  .room-bars { grid-template-columns: 1fr; }
+  .edit-grid { grid-template-columns: 1fr; }
+  .tabs { overflow-x: auto; scrollbar-width: none; white-space: nowrap; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab { flex-shrink: 0; }
   header { padding: 0 14px; }
   .tabs { padding: 0 10px; }
   .page { padding: 16px 12px; }
@@ -187,9 +201,11 @@ td.students-cell.over { color: var(--red); }
   <div class="loading-spinner">Loading schedule...</div>
 </div>
 
-<div id="page-schedule" class="page active"></div>
-<div id="page-rooms"    class="page"></div>
-<div id="page-summary"  class="page"></div>
+<div class="container">
+  <div id="page-schedule" class="page active"></div>
+  <div id="page-rooms"    class="page"></div>
+  <div id="page-summary"  class="page"></div>
+</div>
 
 <script>
 // ══════════════════════════════════════════════════════════════
@@ -228,72 +244,72 @@ let schedule = [];
 let isLoaded = false;
 
 const INITIAL_DATA = [
-  {id:1,  level:"Kids 1",          teacher:"Gulnora",    days:["Tue","Thu","Sat"], time:"9:00-10:20",   room:"Kids",               students:7},
-  {id:2,  level:"Kids 3",          teacher:"Guzal",      days:["Tue","Thu","Sat"], time:"10:30-11:50",  room:"Kids",               students:17},
-  {id:3,  level:"Kids 2",          teacher:"Guzal",      days:["Tue","Thu","Sat"], time:"15:30-16:50",  room:"Kids",               students:11},
-  {id:4,  level:"Kids 3",          teacher:"Guzal",      days:["Mon","Wed","Fri"], time:"9:00-10:20",   room:"Kids",               students:11},
-  {id:5,  level:"Kids 3",          teacher:"Guzal",      days:["Mon","Wed","Fri"], time:"15:30-16:50",  room:"Kids",               students:12},
-  {id:6,  level:"Kids 3",          teacher:"Rayhona",    days:["Mon","Wed","Fri"], time:"18:30-19:50",  room:"Kids",               students:6},
-  {id:7,  level:"A0",              teacher:"Guzal",      days:["Tue","Thu","Sat"], time:"14:00-15:20",  room:"New Room",           students:18},
-  {id:8,  level:"A0 kids",         teacher:"Shakhruz",   days:["Mon","Wed","Fri"], time:"15:30-16:50",  room:"Elon Mask",          students:5},
-  {id:9,  level:"A0 kids",         teacher:"Shakhruz",   days:["Mon","Wed","Fri"], time:"17:00-18:20",  room:"Elon Mask",          students:5},
-  {id:10, level:"A1 kids",         teacher:"Umid",       days:["Mon","Wed","Fri"], time:"10:30-11:50",  room:"Zuckerberg",         students:6},
-  {id:11, level:"A1",              teacher:"Zarrina",    days:["Tue","Thu","Sat"], time:"18:30-19:50",  room:"Nelson Mandela",     students:15},
-  {id:12, level:"A1 kids",         teacher:"Guzal",      days:["Mon","Wed","Fri"], time:"10:30-11:50",  room:"Kids",               students:7},
-  {id:13, level:"A1",              teacher:"Odina",      days:["Mon","Wed","Fri"], time:"15:30-16:50",  room:"Space X",            students:8},
-  {id:14, level:"A1",              teacher:"Odina",      days:["Mon","Wed","Fri"], time:"9:00-10:20",   room:"Space X",            students:14},
-  {id:15, level:"A1",              teacher:"Zarrina",    days:["Tue","Thu","Sat"], time:"14:00-15:20",  room:"Nelson Mandela",     students:14},
-  {id:16, level:"A1",              teacher:"Guzal",      days:["Tue","Thu","Sat"], time:"14:00-15:20",  room:"Kids",               students:12},
-  {id:17, level:"A1 kids",         teacher:"Guzal",      days:["Tue","Thu","Sat"], time:"9:00-10:20",   room:"Kids",               students:15},
-  {id:18, level:"A1",              teacher:"Elvira",     days:["Tue","Thu","Sat"], time:"14:00-15:20",  room:"Green Room",         students:9},
-  {id:19, level:"A2 kids",         teacher:"Umid",       days:["Mon","Wed","Fri"], time:"9:00-10:20",   room:"Zuckerberg",         students:15},
-  {id:20, level:"A2",              teacher:"Odina",      days:["Tue","Thu","Sat"], time:"10:30-11:50",  room:"Space X",            students:10},
-  {id:21, level:"A2",              teacher:"Odina",      days:["Tue","Thu","Sat"], time:"14:00-15:20",  room:"Space X",            students:13},
-  {id:22, level:"A2 kids",         teacher:"Shahzoda",   days:["Tue","Thu","Sat"], time:"17:00-18:20",  room:"Einstein",           students:7},
-  {id:23, level:"A2",              teacher:"Khamidillo", days:["Mon","Wed","Fri"], time:"17:00-18:20",  room:"Exam Room",          students:17},
-  {id:24, level:"A2",              teacher:"Zarrina",    days:["Tue","Thu","Sat"], time:"18:30-19:50",  room:"Nelson Mandela",     students:17},
-  {id:25, level:"A2",              teacher:"Shakhruz",   days:["Tue","Thu","Sat"], time:"14:00-15:20",  room:"Elon Mask",          students:9},
-  {id:26, level:"A2",              teacher:"Gulnora",    days:["Tue","Thu","Sat"], time:"10:30-11:50",  room:"New Room",           students:12},
-  {id:27, level:"B1",              teacher:"Odina",      days:["Tue","Thu","Sat"], time:"10:30-11:50",  room:"Space X",            students:13},
-  {id:28, level:"B1",              teacher:"Shahzoda",   days:["Tue","Thu","Sat"], time:"14:00-15:20",  room:"Einstein",           students:7},
-  {id:29, level:"B1",              teacher:"Elvira",     days:["Mon","Wed","Fri"], time:"9:00-10:20",   room:"Green Room",         students:6},
-  {id:30, level:"B1",              teacher:"Zarrina",    days:["Mon","Wed","Fri"], time:"9:00-10:20",   room:"Nelson Mandela",     students:12},
-  {id:31, level:"B1",              teacher:"Zarrina",    days:["Mon","Wed","Fri"], time:"15:30-16:50",  room:"Nelson Mandela",     students:14},
-  {id:32, level:"B1",              teacher:"Sadoqat",    days:["Tue","Thu","Sat"], time:"14:00-15:20",  room:"Quadrant",           students:16},
-  {id:33, level:"B1",              teacher:"Rayhona",    days:["Tue","Thu","Sat"], time:"15:30-16:50",  room:"Quadrant",           students:18},
-  {id:34, level:"B1",              teacher:"Umid",       days:["Tue","Thu","Sat"], time:"18:30-19:50",  room:"Zuckerberg",         students:11},
-  {id:35, level:"B1",              teacher:"Umid",       days:["Mon","Wed","Fri"], time:"15:30-16:50",  room:"Zuckerberg",         students:14},
-  {id:36, level:"B1",              teacher:"Umid",       days:["Tue","Thu","Sat"], time:"9:00-10:20",   room:"Zuckerberg",         students:16},
-  {id:37, level:"B1+",             teacher:"Odina",      days:["Tue","Thu","Sat"], time:"17:00-18:20",  room:"Space X",            students:10},
-  {id:38, level:"B1+",             teacher:"Shahzoda",   days:["Mon","Wed","Fri"], time:"14:00-15:20",  room:"Einstein",           students:10},
-  {id:39, level:"B1+",             teacher:"Sadoqat",    days:["Mon","Wed","Fri"], time:"14:00-15:20",  room:"Quadrant",           students:11},
-  {id:40, level:"B1+",             teacher:"Umid",       days:["Tue","Thu","Sat"], time:"20:00-21:20",  room:"Zuckerberg",         students:4},
-  {id:41, level:"B1+",             teacher:"Shahzoda",   days:["Mon","Wed","Fri"], time:"10:30-11:50",  room:"Einstein",           students:10},
-  {id:42, level:"B1+",             teacher:"Anna",       days:["Tue","Thu","Sat"], time:"10:30-11:50",  room:"National Geographic", students:13},
-  {id:43, level:"B1+",             teacher:"Anna",       days:["Mon","Wed","Fri"], time:"17:00-18:20",  room:"National Geographic", students:13},
-  {id:44, level:"B1+",             teacher:"Odina",      days:["Tue","Thu","Sat"], time:"15:30-16:50",  room:"Space X",            students:17},
-  {id:45, level:"B1+",             teacher:"Elvira",     days:["Mon","Wed","Fri"], time:"15:30-16:50",  room:"Green Room",         students:15},
-  {id:46, level:"B2",              teacher:"Umid",       days:["Tue","Thu","Sat"], time:"14:00-15:20",  room:"Zuckerberg",         students:11},
-  {id:47, level:"B2",              teacher:"Shahzoda",   days:["Tue","Thu","Sat"], time:"15:30-16:50",  room:"Einstein",           students:13},
-  {id:48, level:"B2",              teacher:"Shahzoda",   days:["Mon","Wed","Fri"], time:"9:00-10:20",   room:"Einstein",           students:9},
-  {id:49, level:"B2",              teacher:"Anna",       days:["Tue","Thu","Sat"], time:"15:30-16:50",  room:"National Geographic", students:19},
-  {id:50, level:"B2",              teacher:"Anna",       days:["Tue","Thu","Sat"], time:"9:00-10:20",   room:"National Geographic", students:12},
-  {id:51, level:"B2",              teacher:"Zarrina",    days:["Mon","Wed","Fri"], time:"14:00-15:20",  room:"Nelson Mandela",     students:12},
-  {id:52, level:"Pre-IELTS 1st",   teacher:"Sadoqat",    days:["Mon","Wed","Fri"], time:"15:30-16:50",  room:"Quadrant",           students:7},
-  {id:53, level:"Pre-IELTS 1st",   teacher:"Shakhruz",   days:["Tue","Thu","Sat"], time:"18:30-19:50",  room:"Elon Mask",          students:8},
-  {id:54, level:"Pre-IELTS 2nd",   teacher:"Zarrina",    days:["Mon","Wed","Fri"], time:"17:00-18:20",  room:"Nelson Mandela",     students:13},
-  {id:55, level:"Pre-IELTS 2nd",   teacher:"Zarrina",    days:["Tue","Thu","Sat"], time:"15:30-16:50",  room:"Nelson Mandela",     students:10},
-  {id:56, level:"Pre-IELTS 2nd",   teacher:"Khamidillo", days:["Mon","Wed","Fri"], time:"14:00-15:20",  room:"Exam Room",          students:11},
-  {id:57, level:"Pre-IELTS 1st",   teacher:"Odina",      days:["Tue","Thu","Sat"], time:"9:00-10:20",   room:"Space X",            students:10},
-  {id:58, level:"Pre-IELTS 1st",   teacher:"Odina",      days:["Mon","Wed","Fri"], time:"14:00-15:20",  room:"Space X",            students:16},
-  {id:59, level:"Pre-IELTS 3rd",   teacher:"Shahzoda",   days:["Mon","Wed","Fri"], time:"15:30-16:50",  room:"Einstein",           students:18},
-  {id:60, level:"IELTS 2nd",       teacher:"Khamidillo", days:["Tue","Thu","Sat"], time:"10:30-11:50",  room:"Exam Room",          students:12},
-  {id:61, level:"IELTS 2nd",       teacher:"Khamidillo", days:["Mon","Wed","Fri"], time:"15:30-16:50",  room:"Exam Room",          students:16},
-  {id:62, level:"IELTS 1st",       teacher:"Odina",      days:["Mon","Wed","Fri"], time:"17:00-18:20",  room:"Space X",            students:12},
-  {id:63, level:"IELTS 1st",       teacher:"Anna",       days:["Tue","Thu","Sat"], time:"17:00-18:20",  room:"National Geographic", students:13},
-  {id:64, level:"CEFR 1st",        teacher:"Zarrina",    days:["Mon","Wed","Fri"], time:"10:30-11:50",  room:"Nelson Mandela",     students:10},
-  {id:65, level:"CEFR 2nd",        teacher:"Zarrina",    days:["Tue","Thu","Sat"], time:"17:00-18:20",  room:"Nelson Mandela",     students:10},
-  {id:66, level:"CEFR 2nd",        teacher:"Shakhruz",   days:["Tue","Thu","Sat"], time:"15:30-16:50",  room:"Elon Mask",          students:7},
+  {id:1,  level:"Kids 1",          teacher:"Gulnora",    days:["Tue","Thu","Sat"], time:"9:00-10:20",   room:"Kids",               students:7, type:"Teacher"},
+  {id:2,  level:"Kids 3",          teacher:"Guzal",      days:["Tue","Thu","Sat"], time:"10:30-11:50",  room:"Kids",               students:17, type:"Teacher"},
+  {id:3,  level:"Kids 2",          teacher:"Guzal",      days:["Tue","Thu","Sat"], time:"15:30-16:50",  room:"Kids",               students:11, type:"Teacher"},
+  {id:4,  level:"Kids 3",          teacher:"Guzal",      days:["Mon","Wed","Fri"], time:"9:00-10:20",   room:"Kids",               students:11, type:"Teacher"},
+  {id:5,  level:"Kids 3",          teacher:"Guzal",      days:["Mon","Wed","Fri"], time:"15:30-16:50",  room:"Kids",               students:12, type:"Teacher"},
+  {id:6,  level:"Kids 3",          teacher:"Rayhona",    days:["Mon","Wed","Fri"], time:"18:30-19:50",  room:"Kids",               students:6, type:"Teacher"},
+  {id:7,  level:"A0",              teacher:"Guzal",      days:["Tue","Thu","Sat"], time:"14:00-15:20",  room:"New Room",           students:18, type:"Teacher"},
+  {id:8,  level:"A0 kids",         teacher:"Shakhruz",   days:["Mon","Wed","Fri"], time:"15:30-16:50",  room:"Elon Mask",          students:5, type:"Teacher"},
+  {id:9,  level:"A0 kids",         teacher:"Shakhruz",   days:["Mon","Wed","Fri"], time:"17:00-18:20",  room:"Elon Mask",          students:5, type:"Teacher"},
+  {id:10, level:"A1 kids",         teacher:"Umid",       days:["Mon","Wed","Fri"], time:"10:30-11:50",  room:"Zuckerberg",         students:6, type:"Teacher"},
+  {id:11, level:"A1",              teacher:"Zarrina",    days:["Tue","Thu","Sat"], time:"18:30-19:50",  room:"Nelson Mandela",     students:15, type:"Teacher"},
+  {id:12, level:"A1 kids",         teacher:"Guzal",      days:["Mon","Wed","Fri"], time:"10:30-11:50",  room:"Kids",               students:7, type:"Teacher"},
+  {id:13, level:"A1",              teacher:"Odina",      days:["Mon","Wed","Fri"], time:"15:30-16:50",  room:"Space X",            students:8, type:"Teacher"},
+  {id:14, level:"A1",              teacher:"Odina",      days:["Mon","Wed","Fri"], time:"9:00-10:20",   room:"Space X",            students:14, type:"Teacher"},
+  {id:15, level:"A1",              teacher:"Zarrina",    days:["Tue","Thu","Sat"], time:"14:00-15:20",  room:"Nelson Mandela",     students:14, type:"Teacher"},
+  {id:16, level:"A1",              teacher:"Guzal",      days:["Tue","Thu","Sat"], time:"14:00-15:20",  room:"Kids",               students:12, type:"Teacher"},
+  {id:17, level:"A1 kids",         teacher:"Guzal",      days:["Tue","Thu","Sat"], time:"9:00-10:20",   room:"Kids",               students:15, type:"Teacher"},
+  {id:18, level:"A1",              teacher:"Elvira",     days:["Tue","Thu","Sat"], time:"14:00-15:20",  room:"Green Room",         students:9, type:"Teacher"},
+  {id:19, level:"A2 kids",         teacher:"Umid",       days:["Mon","Wed","Fri"], time:"9:00-10:20",   room:"Zuckerberg",         students:15, type:"Teacher"},
+  {id:20, level:"A2",              teacher:"Odina",      days:["Tue","Thu","Sat"], time:"10:30-11:50",  room:"Space X",            students:10, type:"Teacher"},
+  {id:21, level:"A2",              teacher:"Odina",      days:["Tue","Thu","Sat"], time:"14:00-15:20",  room:"Space X",            students:13, type:"Teacher"},
+  {id:22, level:"A2 kids",         teacher:"Shahzoda",   days:["Tue","Thu","Sat"], time:"17:00-18:20",  room:"Einstein",           students:7, type:"Teacher"},
+  {id:23, level:"A2",              teacher:"Khamidillo", days:["Mon","Wed","Fri"], time:"17:00-18:20",  room:"Exam Room",          students:17, type:"Teacher"},
+  {id:24, level:"A2",              teacher:"Zarrina",    days:["Tue","Thu","Sat"], time:"18:30-19:50",  room:"Nelson Mandela",     students:17, type:"Teacher"},
+  {id:25, level:"A2",              teacher:"Shakhruz",   days:["Tue","Thu","Sat"], time:"14:00-15:20",  room:"Elon Mask",          students:9, type:"Teacher"},
+  {id:26, level:"A2",              teacher:"Gulnora",    days:["Tue","Thu","Sat"], time:"10:30-11:50",  room:"New Room",           students:12, type:"Teacher"},
+  {id:27, level:"B1",              teacher:"Odina",      days:["Tue","Thu","Sat"], time:"10:30-11:50",  room:"Space X",            students:13, type:"Teacher"},
+  {id:28, level:"B1",              teacher:"Shahzoda",   days:["Tue","Thu","Sat"], time:"14:00-15:20",  room:"Einstein",           students:7, type:"Teacher"},
+  {id:29, level:"B1",              teacher:"Elvira",     days:["Mon","Wed","Fri"], time:"9:00-10:20",   room:"Green Room",         students:6, type:"Teacher"},
+  {id:30, level:"B1",              teacher:"Zarrina",    days:["Mon","Wed","Fri"], time:"9:00-10:20",   room:"Nelson Mandela",     students:12, type:"Teacher"},
+  {id:31, level:"B1",              teacher:"Zarrina",    days:["Mon","Wed","Fri"], time:"15:30-16:50",  room:"Nelson Mandela",     students:14, type:"Teacher"},
+  {id:32, level:"B1",              teacher:"Sadoqat",    days:["Tue","Thu","Sat"], time:"14:00-15:20",  room:"Quadrant",           students:16, type:"Teacher"},
+  {id:33, level:"B1",              teacher:"Rayhona",    days:["Tue","Thu","Sat"], time:"15:30-16:50",  room:"Quadrant",           students:18, type:"Teacher"},
+  {id:34, level:"B1",              teacher:"Umid",       days:["Tue","Thu","Sat"], time:"18:30-19:50",  room:"Zuckerberg",         students:11, type:"Teacher"},
+  {id:35, level:"B1",              teacher:"Umid",       days:["Mon","Wed","Fri"], time:"15:30-16:50",  room:"Zuckerberg",         students:14, type:"Teacher"},
+  {id:36, level:"B1",              teacher:"Umid",       days:["Tue","Thu","Sat"], time:"9:00-10:20",   room:"Zuckerberg",         students:16, type:"Teacher"},
+  {id:37, level:"B1+",             teacher:"Odina",      days:["Tue","Thu","Sat"], time:"17:00-18:20",  room:"Space X",            students:10, type:"Teacher"},
+  {id:38, level:"B1+",             teacher:"Shahzoda",   days:["Mon","Wed","Fri"], time:"14:00-15:20",  room:"Einstein",           students:10, type:"Teacher"},
+  {id:39, level:"B1+",             teacher:"Sadoqat",    days:["Mon","Wed","Fri"], time:"14:00-15:20",  room:"Quadrant",           students:11, type:"Teacher"},
+  {id:40, level:"B1+",             teacher:"Umid",       days:["Tue","Thu","Sat"], time:"20:00-21:20",  room:"Zuckerberg",         students:4, type:"Teacher"},
+  {id:41, level:"B1+",             teacher:"Shahzoda",   days:["Mon","Wed","Fri"], time:"10:30-11:50",  room:"Einstein",           students:10, type:"Teacher"},
+  {id:42, level:"B1+",             teacher:"Anna",       days:["Tue","Thu","Sat"], time:"10:30-11:50",  room:"National Geographic", students:13, type:"Teacher"},
+  {id:43, level:"B1+",             teacher:"Anna",       days:["Mon","Wed","Fri"], time:"17:00-18:20",  room:"National Geographic", students:13, type:"Teacher"},
+  {id:44, level:"B1+",             teacher:"Odina",      days:["Tue","Thu","Sat"], time:"15:30-16:50",  room:"Space X",            students:17, type:"Teacher"},
+  {id:45, level:"B1+",             teacher:"Elvira",     days:["Mon","Wed","Fri"], time:"15:30-16:50",  room:"Green Room",         students:15, type:"Teacher"},
+  {id:46, level:"B2",              teacher:"Umid",       days:["Tue","Thu","Sat"], time:"14:00-15:20",  room:"Zuckerberg",         students:11, type:"Teacher"},
+  {id:47, level:"B2",              teacher:"Shahzoda",   days:["Tue","Thu","Sat"], time:"15:30-16:50",  room:"Einstein",           students:13, type:"Teacher"},
+  {id:48, level:"B2",              teacher:"Shahzoda",   days:["Mon","Wed","Fri"], time:"9:00-10:20",   room:"Einstein",           students:9, type:"Teacher"},
+  {id:49, level:"B2",              teacher:"Anna",       days:["Tue","Thu","Sat"], time:"15:30-16:50",  room:"National Geographic", students:19, type:"Teacher"},
+  {id:50, level:"B2",              teacher:"Anna",       days:["Tue","Thu","Sat"], time:"9:00-10:20",   room:"National Geographic", students:12, type:"Teacher"},
+  {id:51, level:"B2",              teacher:"Zarrina",    days:["Mon","Wed","Fri"], time:"14:00-15:20",  room:"Nelson Mandela",     students:12, type:"Teacher"},
+  {id:52, level:"Pre-IELTS 1st",   teacher:"Sadoqat",    days:["Mon","Wed","Fri"], time:"15:30-16:50",  room:"Quadrant",           students:7, type:"Teacher"},
+  {id:53, level:"Pre-IELTS 1st",   teacher:"Shakhruz",   days:["Tue","Thu","Sat"], time:"18:30-19:50",  room:"Elon Mask",          students:8, type:"Teacher"},
+  {id:54, level:"Pre-IELTS 2nd",   teacher:"Zarrina",    days:["Mon","Wed","Fri"], time:"17:00-18:20",  room:"Nelson Mandela",     students:13, type:"Teacher"},
+  {id:55, level:"Pre-IELTS 2nd",   teacher:"Zarrina",    days:["Tue","Thu","Sat"], time:"15:30-16:50",  room:"Nelson Mandela",     students:10, type:"Teacher"},
+  {id:56, level:"Pre-IELTS 2nd",   teacher:"Khamidillo", days:["Mon","Wed","Fri"], time:"14:00-15:20",  room:"Exam Room",          students:11, type:"Teacher"},
+  {id:57, level:"Pre-IELTS 1st",   teacher:"Odina",      days:["Tue","Thu","Sat"], time:"9:00-10:20",   room:"Space X",            students:10, type:"Teacher"},
+  {id:58, level:"Pre-IELTS 1st",   teacher:"Odina",      days:["Mon","Wed","Fri"], time:"14:00-15:20",  room:"Space X",            students:16, type:"Teacher"},
+  {id:59, level:"Pre-IELTS 3rd",   teacher:"Shahzoda",   days:["Mon","Wed","Fri"], time:"15:30-16:50",  room:"Einstein",           students:18, type:"Teacher"},
+  {id:60, level:"IELTS 2nd",       teacher:"Khamidillo", days:["Tue","Thu","Sat"], time:"10:30-11:50",  room:"Exam Room",          students:12, type:"Teacher"},
+  {id:61, level:"IELTS 2nd",       teacher:"Khamidillo", days:["Mon","Wed","Fri"], time:"15:30-16:50",  room:"Exam Room",          students:16, type:"Teacher"},
+  {id:62, level:"IELTS 1st",       teacher:"Odina",      days:["Mon","Wed","Fri"], time:"17:00-18:20",  room:"Space X",            students:12, type:"Teacher"},
+  {id:63, level:"IELTS 1st",       teacher:"Anna",       days:["Tue","Thu","Sat"], time:"17:00-18:20",  room:"National Geographic", students:13, type:"Teacher"},
+  {id:64, level:"CEFR 1st",        teacher:"Zarrina",    days:["Mon","Wed","Fri"], time:"10:30-11:50",  room:"Nelson Mandela",     students:10, type:"Teacher"},
+  {id:65, level:"CEFR 2nd",        teacher:"Zarrina",    days:["Tue","Thu","Sat"], time:"17:00-18:20",  room:"Nelson Mandela",     students:10, type:"Teacher"},
+  {id:66, level:"CEFR 2nd",        teacher:"Shakhruz",   days:["Tue","Thu","Sat"], time:"15:30-16:50",  room:"Elon Mask",          students:7, type:"Teacher"},
 ];
 
 // ══════════════════════════════════════════════════════════════
@@ -318,7 +334,7 @@ function hideLoading() {
 function seedInitialData() {
   const initialMap = {};
   INITIAL_DATA.forEach((g, i) => {
-    initialMap[i+1] = {level: g.level, teacher: g.teacher, days: g.days, time: g.time, room: g.room, students: g.students};
+    initialMap[i+1] = {level: g.level, teacher: g.teacher, days: g.days, time: g.time, room: g.room, students: g.students, type: g.type || "Teacher"};
   });
   scheduleRef.set(initialMap);
 }
@@ -427,7 +443,7 @@ function renderSchedule() {
 
   html += `<div class="tbl-wrap"><table>
   <thead><tr>
-    <th>#</th><th>Level</th><th>Teacher</th><th>Days</th><th>Time</th>
+    <th>#</th><th>Level</th><th>Teacher</th><th>Type</th><th>Days</th><th>Time</th>
     <th>Room</th><th>Students</th><th>Status</th><th></th>
   </tr></thead><tbody>`;
 
@@ -442,6 +458,7 @@ function renderSchedule() {
       <td style="color:var(--gray);font-size:0.72rem">${i+1}</td>
       <td class="level-cell">${g.level}</td>
       <td class="teacher-cell">${g.teacher}</td>
+      <td><span class="type-tag ${g.type==='Academic'?'tag-academic':'tag-teacher'}">${g.type||'Teacher'}</span></td>
       <td><div class="day-pills">${g.days.map(d=>`<span class="day-pill">${d}</span>`).join('')}</div></td>
       <td class="time-cell">${g.time}</td>
       <td>${g.room}</td>
@@ -461,13 +478,14 @@ function renderSchedule() {
 
 function renderEditPanel(g) {
   const isNew = !g;
-  const f = isNew ? {level:LEVELS[0],teacher:TEACHERS[0],days:["Mon","Wed","Fri"],time:TIMES[0],room:ROOM_NAMES[0],students:10} : g;
+  const f = isNew ? {level:LEVELS[0],teacher:TEACHERS[0],days:["Mon","Wed","Fri"],time:TIMES[0],room:ROOM_NAMES[0],students:10,type:"Teacher"} : g;
   const overWarn = !isNew && f.students > cap(f.room);
   return `<div class="edit-panel">
     <div class="edit-panel-title">${isNew?'➕ Add New Group':`✏ Editing: ${g.level} — ${g.teacher}`}</div>
     <div class="edit-grid">
       <div class="field"><label>Level</label>${sel(LEVELS,f.level,'ef-level')}</div>
       <div class="field"><label>Teacher</label>${sel(TEACHERS,f.teacher,'ef-teacher')}</div>
+      <div class="field"><label>Type</label>${sel(["Teacher","Academic"],f.type||"Teacher",'ef-type')}</div>
       <div class="field"><label>Time Slot</label>${sel(TIMES,f.time,'ef-time')}</div>
       <div class="field"><label>Room</label>${sel(ROOM_NAMES,f.room,'ef-room')}</div>
       <div class="field"><label>Students</label><input type="number" id="ef-students" min="1" max="60" value="${f.students}" oninput="checkOverflow()"></div>
@@ -499,6 +517,7 @@ function getFormData() {
   const data = {
     level:    document.getElementById('ef-level')?.value || LEVELS[0],
     teacher:  document.getElementById('ef-teacher')?.value || TEACHERS[0],
+    type:     document.getElementById('ef-type')?.value || 'Teacher',
     time:     document.getElementById('ef-time')?.value || TIMES[0],
     room:     document.getElementById('ef-room')?.value || ROOM_NAMES[0],
     students: parseInt(document.getElementById('ef-students')?.value) || 10,
