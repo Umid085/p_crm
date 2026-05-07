@@ -453,9 +453,9 @@ function conflictIdSet() {
   return new Set(getConflicts().flatMap(c=>c.ids));
 }
 function statusTag(g) {
-  const c=cap(g.room), pct=g.students/c;
+  const c=cap(g.room), remaining=c-g.students;
   if(g.students>c) return `<span class="status-tag tag-over">⚠ OVERFLOW</span>`;
-  if(pct>=0.9)     return `<span class="status-tag tag-near">🔶 Nearly Full</span>`;
+  if(remaining<5)  return `<span class="status-tag tag-near">🔶 Nearly Full</span>`;
   return `<span class="status-tag tag-ok">✅ OK</span>`;
 }
 function sel(opts, val, id) {
