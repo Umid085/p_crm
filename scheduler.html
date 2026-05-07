@@ -160,11 +160,26 @@ td.students-cell.over { color: var(--red); }
 @keyframes slideIn { from { transform: translateX(400px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 @keyframes slideOut { to { transform: translateX(400px); opacity: 0; } }
 
+/* ── SETTINGS ── */
+.settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.settings-card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius2); padding: 20px; }
+.settings-card-title { font-family: var(--font-head); font-size: 0.9rem; font-weight: 700; color: var(--gold); margin-bottom: 14px; text-transform: uppercase; letter-spacing: 0.5px; }
+.settings-list { display: flex; flex-direction: column; gap: 0; }
+.settings-list-item { display: flex; align-items: center; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid var(--border); font-size: 0.82rem; }
+.settings-list-item:last-child { border-bottom: none; }
+.settings-list-name { flex: 1; }
+.settings-list-cap { width: 60px; margin: 0 8px; }
+.settings-list-cap input { width: 100%; }
+.settings-add-row { display: flex; gap: 8px; margin-top: 16px; }
+.settings-add-row input { flex: 1; }
+.settings-add-row .btn { flex-shrink: 0; }
+
 /* ── RESPONSIVE: TABLET (1024px) ── */
 @media (max-width: 1024px) {
   .kpi-row { grid-template-columns: repeat(2, 1fr); }
   .room-bars { grid-template-columns: 1fr; }
   .edit-grid { grid-template-columns: repeat(2, 1fr); }
+  .settings-grid { grid-template-columns: 1fr; }
 }
 
 /* ── RESPONSIVE: MOBILE (700px) ── */
@@ -195,6 +210,7 @@ td.students-cell.over { color: var(--red); }
   <button class="tab active" onclick="switchTab('schedule')">📋 Schedule</button>
   <button class="tab" onclick="switchTab('rooms')">🏫 Room Grid</button>
   <button class="tab" onclick="switchTab('summary')">📊 Summary</button>
+  <button class="tab" onclick="switchTab('settings')">⚙ Settings</button>
 </div>
 
 <div id="loading" class="loading-overlay" style="display:flex">
@@ -205,6 +221,7 @@ td.students-cell.over { color: var(--red); }
   <div id="page-schedule" class="page active"></div>
   <div id="page-rooms"    class="page"></div>
   <div id="page-summary"  class="page"></div>
+  <div id="page-settings" class="page"></div>
 </div>
 
 <script>
@@ -223,6 +240,8 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.app().database('https://pcrm-e418e-default-rtdb.asia-southeast1.firebasedatabase.app');
 const scheduleRef = db.ref('schedule');
+const teachersRef = db.ref('teachers');
+const roomsRef    = db.ref('rooms');
 
 // ══════════════════════════════════════════════════════════════
 // DATA
@@ -233,12 +252,12 @@ const ROOMS = [
   {name:"Exam Room",cap:24},{name:"National Geographic",cap:20},
   {name:"Green Room",cap:15},{name:"New Room",cap:18},{name:"Kids",cap:18},{name:"German",cap:12},
 ];
-const ROOM_CAP = Object.fromEntries(ROOMS.map(r=>[r.name,r.cap]));
-const TEACHERS = ["Umid","Odina","Zarrina","Shahzoda","Shakhruz","Sadoqat","Khamidillo","Anna","Elvira","Guzal","Gulnora","Rayhona","Kamila"];
+let ROOM_CAP = Object.fromEntries(ROOMS.map(r=>[r.name,r.cap]));
+let TEACHERS = ["Umid","Odina","Zarrina","Shahzoda","Shakhruz","Sadoqat","Khamidillo","Anna","Elvira","Guzal","Gulnora","Rayhona","Kamila"];
 const LEVELS   = ["Kids 1","Kids 2","Kids 3","A0","A0 kids","A1","A1 kids","A2","A2 kids","B1","B1+","B2","Pre-IELTS 1st","Pre-IELTS 2nd","Pre-IELTS 3rd","IELTS 1st","IELTS 2nd","CEFR 1st","CEFR 2nd","Individual","NABOR/slot"];
 const TIMES    = ["9:00-10:20","10:30-11:50","13:00-14:20","14:00-15:20","15:30-16:50","17:00-18:20","18:30-19:50","20:00-21:20"];
 const DAYS_ALL = ["Mon","Tue","Wed","Thu","Fri","Sat"];
-const ROOM_NAMES = ROOMS.map(r=>r.name);
+let ROOM_NAMES = ROOMS.map(r=>r.name);
 
 let schedule = [];
 let isLoaded = false;
@@ -339,6 +358,18 @@ function seedInitialData() {
   scheduleRef.set(initialMap);
 }
 
+function seedTeachers() {
+  const m = {};
+  TEACHERS.forEach(t => m[t] = true);
+  teachersRef.set(m);
+}
+
+function seedRooms() {
+  const m = {};
+  ROOMS.forEach(r => m[r.name] = {cap: r.cap});
+  roomsRef.set(m);
+}
+
 // Load local data first, then sync with Firebase
 function loadLocalData() {
   schedule = INITIAL_DATA.map(g => ({...g}));
@@ -365,6 +396,24 @@ setTimeout(() => {
   }, (error) => {
     console.error('Firebase error:', error);
     if (!isLoaded) loadLocalData();
+  });
+
+  teachersRef.on('value', (snapshot) => {
+    const d = snapshot.val();
+    if (d) {
+      TEACHERS = Object.keys(d).sort();
+      if (isLoaded) renderAll();
+    }
+  });
+
+  roomsRef.on('value', (snapshot) => {
+    const d = snapshot.val();
+    if (d) {
+      ROOMS = Object.keys(d).map(name => ({name, cap: d[name].cap}));
+      ROOM_NAMES = ROOMS.map(r => r.name);
+      ROOM_CAP = Object.fromEntries(ROOMS.map(r => [r.name, r.cap]));
+      if (isLoaded) renderAll();
+    }
   });
 }, 100);
 
@@ -570,6 +619,51 @@ function toggleDay(day, btn) {
 }
 
 // ══════════════════════════════════════════════════════════════
+// SETTINGS: CRUD FUNCTIONS
+// ══════════════════════════════════════════════════════════════
+function addTeacher() {
+  const v = document.getElementById('new-teacher-input')?.value.trim();
+  if (!v) { alert('Please enter a teacher name'); return; }
+  teachersRef.child(v).set(true).then(() => {
+    document.getElementById('new-teacher-input').value = '';
+    showToast('✅ Teacher added');
+  }).catch(err => alert('Error: ' + err.message));
+}
+
+function deleteTeacher(name) {
+  if (!confirm(`Delete teacher "${name}"?`)) return;
+  teachersRef.child(name).remove().then(() => {
+    showToast('✅ Teacher removed');
+  }).catch(err => alert('Error: ' + err.message));
+}
+
+function addRoom() {
+  const n = document.getElementById('new-room-name')?.value.trim();
+  const c = parseInt(document.getElementById('new-room-cap')?.value) || 18;
+  if (!n) { alert('Please enter a room name'); return; }
+  roomsRef.child(n).set({cap: c}).then(() => {
+    document.getElementById('new-room-name').value = '';
+    document.getElementById('new-room-cap').value = '18';
+    showToast('✅ Room added');
+  }).catch(err => alert('Error: ' + err.message));
+}
+
+function saveRoom(name) {
+  const id = 'room-cap-' + name.replace(/[^a-zA-Z0-9]/g, '_');
+  const c = parseInt(document.getElementById(id)?.value) || 18;
+  roomsRef.child(name).update({cap: c}).then(() => {
+    showToast('✅ Room updated');
+  }).catch(err => alert('Error: ' + err.message));
+}
+
+function deleteRoom(name) {
+  if (!confirm(`Delete room "${name}"?`)) return;
+  roomsRef.child(name).remove().then(() => {
+    showToast('✅ Room removed');
+  }).catch(err => alert('Error: ' + err.message));
+}
+
+// ══════════════════════════════════════════════════════════════
 // RENDER: ROOM GRID
 // ══════════════════════════════════════════════════════════════
 function renderRooms() {
@@ -690,12 +784,51 @@ function renderSummary() {
 }
 
 // ══════════════════════════════════════════════════════════════
+// RENDER: SETTINGS
+// ══════════════════════════════════════════════════════════════
+function renderSettings() {
+  let html = `<div class="settings-grid">
+    <div class="settings-card">
+      <div class="settings-card-title">👥 Teachers</div>
+      <div class="settings-list">
+        ${TEACHERS.map(t => `<div class="settings-list-item">
+          <span class="settings-list-name">${t}</span>
+          <button class="btn btn-red btn-sm" onclick="deleteTeacher('${t}')">🗑 Delete</button>
+        </div>`).join('')}
+      </div>
+      <div class="settings-add-row">
+        <input type="text" id="new-teacher-input" placeholder="New teacher name" />
+        <button class="btn btn-gold" onclick="addTeacher()">+ Add</button>
+      </div>
+    </div>
+    <div class="settings-card">
+      <div class="settings-card-title">🏫 Rooms</div>
+      <div class="settings-list">
+        ${ROOMS.map(r => `<div class="settings-list-item">
+          <span class="settings-list-name">${r.name}</span>
+          <input type="number" id="room-cap-${r.name.replace(/[^a-zA-Z0-9]/g, '_')}" class="settings-list-cap" min="5" max="100" value="${r.cap}" />
+          <button class="btn btn-ghost btn-sm" onclick="saveRoom('${r.name}')" style="margin-right:4px">💾 Save</button>
+          <button class="btn btn-red btn-sm" onclick="deleteRoom('${r.name}')">🗑</button>
+        </div>`).join('')}
+      </div>
+      <div class="settings-add-row">
+        <input type="text" id="new-room-name" placeholder="Room name" />
+        <input type="number" id="new-room-cap" placeholder="Capacity" min="5" max="100" value="18" />
+        <button class="btn btn-gold" onclick="addRoom()">+ Add</button>
+      </div>
+    </div>
+  </div>`;
+  document.getElementById('page-settings').innerHTML = html;
+}
+
+// ══════════════════════════════════════════════════════════════
 // GLOBAL RENDER + TABS
 // ══════════════════════════════════════════════════════════════
 function renderAll() {
   renderSchedule();
   renderRooms();
   renderSummary();
+  renderSettings();
   // Badge
   const n = getConflicts().length;
   const badge = document.getElementById('headerBadge');
@@ -709,7 +842,7 @@ function renderAll() {
 function switchTab(tab) {
   activeTab = tab;
   document.querySelectorAll('.tab').forEach((t,i)=>{
-    const tabs=['schedule','rooms','summary'];
+    const tabs=['schedule','rooms','summary','settings'];
     t.classList.toggle('active', tabs[i]===tab);
   });
   document.querySelectorAll('.page').forEach(p=>{
@@ -723,6 +856,16 @@ setTimeout(() => {
   scheduleRef.once('value', (snapshot) => {
     if (!snapshot.exists()) {
       seedInitialData();
+    }
+  });
+  teachersRef.once('value', (snapshot) => {
+    if (!snapshot.exists()) {
+      seedTeachers();
+    }
+  });
+  roomsRef.once('value', (snapshot) => {
+    if (!snapshot.exists()) {
+      seedRooms();
     }
   });
 }, 1000);
