@@ -19,6 +19,16 @@
   --radius: 8px; --radius2: 12px;
   --font-head: 'Syne', sans-serif; --font-mono: 'DM Mono', monospace;
 }
+
+body.light-mode {
+  --bg: #f8f8f8; --bg2: #ffffff; --bg3: #f5f5f5; --bg4: #eeeeee;
+  --gold: #d4a520; --gold2: #b8860b; --gold-dim: rgba(212, 165, 32, 0.12);
+  --white: #1a1a1a; --gray: #666; --gray2: #777; --gray3: #444;
+  --red: #d32f2f; --red-dim: rgba(211, 47, 47, 0.1); --red-bg: rgba(211, 47, 47, 0.05);
+  --green: #2e7d32; --green-dim: rgba(46, 125, 50, 0.1);
+  --orange: #e67e22; --blue: #1976d2;
+  --border: #e0e0e0; --border2: #d0d0d0;
+}
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { font-size: 14px; }
 body { background: var(--bg); color: var(--white); font-family: var(--font-mono); min-height: 100vh; overflow-x: hidden; }
@@ -33,6 +43,9 @@ body { background: var(--bg); color: var(--white); font-family: var(--font-mono)
 header { background: linear-gradient(135deg, var(--bg2) 0%, var(--bg3) 100%); border-bottom: 2px solid var(--gold); padding: 0 28px; display: flex; align-items: center; justify-content: space-between; height: 60px; position: sticky; top: 0; z-index: 100; box-shadow: 0 4px 20px rgba(232, 197, 71, 0.1); }
 .logo { font-family: var(--font-head); font-size: 1.3rem; font-weight: 800; color: var(--gold); letter-spacing: 0.5px; }
 .logo span { color: var(--gray2); font-weight: 400; font-size: 0.85rem; margin-left: 10px; font-family: var(--font-mono); }
+.theme-toggle { background: transparent; border: none; font-size: 1.2rem; cursor: pointer; padding: 4px 8px; border-radius: var(--radius); transition: all 0.3s ease; }
+.theme-toggle:hover { background: rgba(232,197,71,0.1); transform: rotate(20deg); }
+body.light-mode .theme-toggle:hover { background: rgba(212, 165, 32, 0.1); }
 .header-badge { background: var(--red); color: #fff; font-size: 0.7rem; font-weight: 700; padding: 3px 10px; border-radius: 20px; display: none; }
 .header-badge.show { display: block; }
 
@@ -244,7 +257,10 @@ td.students-cell.over { color: var(--red); }
   <div>
     <span class="logo">GAGARINA <span>Branch Scheduler</span></span>
   </div>
-  <div id="headerBadge" class="header-badge">0 issues</div>
+  <div style="display:flex; gap:16px; align-items:center;">
+    <button id="themeToggle" class="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark mode">🌙</button>
+    <div id="headerBadge" class="header-badge">0 issues</div>
+  </div>
 </header>
 
 <div class="tabs">
@@ -921,7 +937,29 @@ function switchTab(tab) {
   });
 }
 
+// ══════════════════════════════════════════════════════════════
+// THEME TOGGLE
+// ══════════════════════════════════════════════════════════════
+function toggleTheme() {
+  const isDark = document.body.classList.toggle('light-mode');
+  const btn = document.getElementById('themeToggle');
+  btn.textContent = isDark ? '☀️' : '🌙';
+  localStorage.setItem('theme', isDark ? 'light' : 'dark');
+}
+
+function loadTheme() {
+  const saved = localStorage.getItem('theme') || 'dark';
+  if (saved === 'light') {
+    document.body.classList.add('light-mode');
+    document.getElementById('themeToggle').textContent = '☀️';
+  } else {
+    document.body.classList.remove('light-mode');
+    document.getElementById('themeToggle').textContent = '🌙';
+  }
+}
+
 // ── INIT
+loadTheme();
 loadLocalData();
 setTimeout(() => {
   scheduleRef.once('value', (snapshot) => {
