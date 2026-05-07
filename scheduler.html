@@ -250,7 +250,6 @@ td.students-cell.over { color: var(--red); }
 <div class="tabs">
   <button class="tab active" onclick="switchTab('schedule')">📋 Schedule</button>
   <button class="tab" onclick="switchTab('rooms')">🏫 Room Grid</button>
-  <button class="tab" onclick="switchTab('summary')">📊 Summary</button>
   <button class="tab" onclick="switchTab('dashboard')">📈 Dashboard</button>
   <button class="tab" onclick="switchTab('settings')">⚙ Settings</button>
 </div>
@@ -262,7 +261,6 @@ td.students-cell.over { color: var(--red); }
 <div class="container">
   <div id="page-schedule" class="page active"></div>
   <div id="page-rooms"    class="page"></div>
-  <div id="page-summary"  class="page"></div>
   <div id="page-dashboard" class="page"></div>
   <div id="page-settings" class="page"></div>
 </div>
@@ -764,69 +762,6 @@ function jumpToEdit(id) {
 }
 
 // ══════════════════════════════════════════════════════════════
-// RENDER: SUMMARY
-// ══════════════════════════════════════════════════════════════
-function renderSummary() {
-  const conflicts = getConflicts();
-  const totalStudents = schedule.reduce((s,g)=>s+g.students,0);
-  const overflows = conflicts.filter(c=>c.type==='overflow');
-  const usedSet = new Set(); schedule.forEach(g=>g.days.forEach(d=>usedSet.add(g.room+d+g.time)));
-  const totalSlots = ROOMS.reduce((s,r)=>s+TIMES.length*6,0);
-  const branchPct = Math.round(usedSet.size/totalSlots*100);
-  const avgFill = schedule.length ? Math.round(schedule.reduce((s,g)=>s+g.students/cap(g.room),0)/schedule.length*100) : 0;
-
-  let html = `<div class="kpi-row">
-    <div class="kpi-card"><div class="kpi-val" style="color:var(--gold)">${schedule.length}</div><div class="kpi-label">Total Groups</div></div>
-    <div class="kpi-card"><div class="kpi-val" style="color:var(--green)">${totalStudents}</div><div class="kpi-label">Total Students</div></div>
-    <div class="kpi-card"><div class="kpi-val" style="color:${conflicts.length>0?'var(--red)':'var(--green)'}">${conflicts.length}</div><div class="kpi-label">Issues / Conflicts</div></div>
-    <div class="kpi-card">
-      <div class="kpi-val" style="color:var(--gold)">${branchPct}%</div>
-      <div class="kpi-label">Branch Slot Fullness</div>
-      <div class="kpi-bar"><div class="kpi-bar-fill" style="width:${branchPct}%;background:${branchPct>80?'var(--red)':branchPct>55?'var(--orange)':'var(--green)'}"></div></div>
-    </div>
-  </div>`;
-
-  // Issues
-  if (conflicts.length > 0) {
-    html += `<div class="conflict-box"><div class="conflict-box-title">⚠ Issues Detected (${conflicts.length})</div>`;
-    conflicts.forEach(c => {
-      const badge = c.type==='overflow'?'🔴 Overflow':c.type==='room'?'🟠 Room Conflict':'🟡 Teacher Conflict';
-      html += `<div class="conflict-item"><span class="conflict-badge badge-over">${badge}</span>${c.msg}</div>`;
-    });
-    html += `</div>`;
-  } else {
-    html += `<div class="ok-banner">✅ No issues detected — all groups fit their rooms and no conflicts found!</div>`;
-  }
-
-  // Room bars
-  html += `<div class="section-title">Room Utilisation</div><div class="room-bars">`;
-  ROOMS.forEach(room => {
-    const groups = schedule.filter(g=>g.room===room.name);
-    const usedS = new Set(); groups.forEach(g=>g.days.forEach(d=>usedS.add(d+g.time)));
-    const pct = Math.round(usedS.size/(TIMES.length*6)*100);
-    const ovfCount = groups.filter(g=>g.students>room.cap).length;
-    const hasOvf = ovfCount > 0;
-    const barColor = hasOvf?'var(--red)':pct>80?'var(--orange)':'var(--green)';
-    const totalStu = groups.reduce((s,g)=>s+g.students,0);
-
-    html += `<div class="room-bar-card ${hasOvf?'has-overflow':''}">
-      <div class="rbc-top">
-        <div class="rbc-name" style="color:${hasOvf?'var(--red)':'var(--white)'}">${room.name}</div>
-        <div class="rbc-meta">cap ${room.cap} · ${groups.length} groups · ${totalStu} students</div>
-      </div>
-      <div class="rbc-bar"><div class="rbc-bar-fill" style="width:${Math.min(pct,100)}%;background:${barColor}"></div></div>
-      <div class="rbc-bottom">
-        <span>${pct}% time slots used</span>
-        ${hasOvf ? `<span style="color:var(--red)">🔴 ${ovfCount} overflow(s)</span>` : `<span style="color:var(--green)">✅ No overflow</span>`}
-      </div>
-    </div>`;
-  });
-  html += `</div>`;
-
-  document.getElementById('page-summary').innerHTML = html;
-}
-
-// ══════════════════════════════════════════════════════════════
 // RENDER: DASHBOARD
 // ══════════════════════════════════════════════════════════════
 function renderDashboard() {
@@ -963,7 +898,6 @@ function renderSettings() {
 function renderAll() {
   renderSchedule();
   renderRooms();
-  renderSummary();
   renderDashboard();
   renderSettings();
   // Badge
@@ -979,7 +913,7 @@ function renderAll() {
 function switchTab(tab) {
   activeTab = tab;
   document.querySelectorAll('.tab').forEach((t,i)=>{
-    const tabs=['schedule','rooms','summary','dashboard','settings'];
+    const tabs=['schedule','rooms','dashboard','settings'];
     t.classList.toggle('active', tabs[i]===tab);
   });
   document.querySelectorAll('.page').forEach(p=>{
